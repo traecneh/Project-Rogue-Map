@@ -36,9 +36,8 @@
   map.createPane('zones').style.zIndex          = 642;
   map.createPane('zones-labels').style.zIndex   = 643;
   map.createPane('chunk').style.zIndex          = 648;  // under portals
-  map.createPane('caves').style.zIndex          = 649;  // under portal markers
-  map.createPane('portalLines').style.zIndex    = 651;  // portal markers
   map.createPane('labels-portals').style.zIndex = 652;
+  map.createPane('portalLines').style.zIndex    = 653;  // interactive transport nodes (portals/caves)
   map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('elite').style.zIndex          = 670;
 
@@ -276,7 +275,7 @@
     cavesFG.clearLayers();
     const caveColor = getCaveColor();
     const markerOpts = {
-      pane: 'caves',
+      pane: 'portalLines',
       radius: 6,
       color: caveColor,
       weight: 2,

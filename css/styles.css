@@ -180,6 +180,7 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   padding: 2px 8px;
   white-space: nowrap;
   border-radius: 999px;
@@ -188,4 +189,8 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   background: color-mix(in oklab, var(--zone-color) 85%, white 15%);
   border: 1px solid color-mix(in oklab, var(--zone-color) 65%, #000 35%);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.zone-level .icon {
+  font-size: 12px;
+  line-height: 1;
 }

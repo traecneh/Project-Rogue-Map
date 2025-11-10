@@ -63,6 +63,8 @@
     return getComputedStyle(root).getPropertyValue(name).trim();
   };
   const getZoneColor = () => readCssVar('--zone-color') || '#f59e0b';
+  const getCaveColor = () => readCssVar('--cave-color') || '#e2f516';
+  const getPortalColor = () => readCssVar('--portal-color') || '#ff3dc9';
 
   // Pills (defaults: Towns ON, others OFF)
   const pillMonsters = $('#pillMonsters');
@@ -269,19 +271,44 @@
   }
   const refreshChunkLayerDebounced = debounce(refreshChunkLayer, 120);
 
-  // -------- Caves (dotted gold) --------
-  const CAVE_LINE = { color: '#e2f516', weight: 2, opacity: 0.95, dashArray: '6 6', lineCap: 'round', pane: 'caves', interactive: false };
+  // -------- Caves (paired markers with teleport helper) --------
   function renderCaves(cavesArr) {
+    cavesFG.clearLayers();
+    const caveColor = getCaveColor();
+    const markerOpts = {
+      pane: 'caves',
+      radius: 6,
+      color: caveColor,
+      weight: 2,
+      opacity: 0.95,
+      fillColor: caveColor,
+      fillOpacity: 0.85,
+      bubblingMouseEvents: false
+    };
+
+    const makeMarker = (latLng, partnerLatLng) => {
+      const marker = L.circleMarker(latLng, markerOpts).addTo(cavesFG);
+      marker.on('click', () => {
+        if (!partnerLatLng) return;
+        const minZoom = map.getMinZoom();
+        const baseZoom = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
+        const desiredZoom = Math.max(map.getZoom(), baseZoom);
+        const maxZoom = map.getMaxZoom();
+        const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
+        map.flyTo(partnerLatLng, targetZoom, { animate: true, duration: 0.7 });
+      });
+    };
+
     for (const c of (cavesArr || [])) {
       if (!c || !c.entry || !c.exit) continue;
-      const a = toLL(c.entry.x + 0.5, c.entry.y + 0.5);
-      const b = toLL(c.exit.x  + 0.5, c.exit.y  + 0.5);
-      L.polyline([a, b], CAVE_LINE).addTo(cavesFG);
+      const entryLL = toLL(c.entry.x + 0.5, c.entry.y + 0.5);
+      const exitLL  = toLL(c.exit.x  + 0.5, c.exit.y  + 0.5);
+      makeMarker(entryLL, exitLL);
+      makeMarker(exitLL, entryLL);
     }
   }
 
-  // -------- Portals (labels + basic solid lines) --------
-  const PORTAL_LINE = { color: '#ff3dc9', weight: 2, opacity: 0.95, pane: 'portalLines', interactive: false };
+  // -------- Portals (paired markers + labels) --------
   let portalLabelItems = [];
 
   function getEndpoints(o) {
@@ -294,14 +321,43 @@
   }
   function isLabelItem(o) { return o && Number.isFinite(o.x) && Number.isFinite(o.y) && typeof o.name === 'string'; }
 
-  function renderPortalConnections(arr) {
+  function renderPortalMarkers(arr) {
+    portalLinesFG.clearLayers();
+    const portalColor = getPortalColor();
+    const markerOpts = {
+      pane: 'portalLines',
+      radius: 7,
+      color: portalColor,
+      weight: 2,
+      opacity: 0.95,
+      fillColor: portalColor,
+      fillOpacity: 0.85,
+      bubblingMouseEvents: false
+    };
+
+    const makePortal = (latLng, partnerLatLng) => {
+      const interactive = !!partnerLatLng;
+      const marker = L.circleMarker(latLng, { ...markerOpts, interactive }).addTo(portalLinesFG);
+      if (!interactive) return;
+      marker.on('click', () => {
+        const minZoom = map.getMinZoom();
+        const baseZoom = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
+        const desiredZoom = Math.max(map.getZoom(), baseZoom + 1);
+        const maxZoom = map.getMaxZoom();
+        const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
+        map.flyTo(partnerLatLng, targetZoom, { animate: true, duration: 0.7 });
+      });
+    };
+
     for (const p of arr) {
       const ep = getEndpoints(p);
       if (!ep) continue;
       const [x1, y1, x2, y2] = ep;
-      const a = toLL(x1 + 0.5, y1 + 0.5);
-      const b = toLL(x2 + 0.5, y2 + 0.5);
-      L.polyline([a, b], PORTAL_LINE).addTo(portalLinesFG);
+      const entryLL = toLL(x1 + 0.5, y1 + 0.5);
+      const exitLL  = toLL(x2 + 0.5, y2 + 0.5);
+      makePortal(entryLL, exitLL);
+      if (p?.dir !== 'one') makePortal(exitLL, entryLL);
+      else makePortal(exitLL, null);
     }
   }
 
@@ -315,18 +371,27 @@
 
   function renderPortals(ps) {
     if (!Array.isArray(ps)) return;
-    const lineItems = [];
+    const portalPairs = [];
     portalLabelItems = [];
     for (const it of ps) {
-      if (getEndpoints(it)) lineItems.push(it);
+      if (getEndpoints(it)) portalPairs.push(it);
       else if (isLabelItem(it)) portalLabelItems.push(it);
     }
-    // build once; layers are OFF until user toggles
-    renderPortalConnections(lineItems);
+    renderPortalMarkers(portalPairs);
     renderPortalLabels(portalLabelItems);
   }
 
   // -------- Zones (polygons + level badges) --------
+  const ZONE_BOSS_LEVEL = 105;
+  const ZONE_DIFFICULTY_STEPS = [
+    { limit: 20,  bg: '#4ade80', border: '#15803d', text: '#04210f' }, // entry
+    { limit: 40,  bg: '#a3e635', border: '#3f6212', text: '#1f2f0c' }, // low
+    { limit: 60,  bg: '#facc15', border: '#b45309', text: '#301d04' }, // mid
+    { limit: 80,  bg: '#f97316', border: '#c2410c', text: '#2b1003' }, // high
+    { limit: ZONE_BOSS_LEVEL - 1, bg: '#ef4444', border: '#991b1b', text: '#fff' }, // very high
+    { limit: Infinity, bg: '#b91c1c', border: '#7f1d1d', text: '#fff', skull: true } // bosses
+  ];
+
   function formatZoneLevels(levels) {
     if (!levels) return '';
     const min = Number.isFinite(levels.min) ? levels.min : null;
@@ -347,6 +412,22 @@
       sx += x; sy += y; count++;
     }
     return count ? [sx / count, sy / count] : null;
+  }
+
+  function zoneMaxLevel(levels) {
+    if (!levels) return null;
+    const vals = [];
+    if (Number.isFinite(levels.min)) vals.push(levels.min);
+    if (Number.isFinite(levels.max)) vals.push(levels.max);
+    return vals.length ? Math.max(...vals) : null;
+  }
+
+  function zoneDifficultyStyle(level) {
+    if (!Number.isFinite(level)) return ZONE_DIFFICULTY_STEPS[0];
+    for (const step of ZONE_DIFFICULTY_STEPS) {
+      if (level <= step.limit) return step;
+    }
+    return ZONE_DIFFICULTY_STEPS[ZONE_DIFFICULTY_STEPS.length - 1];
   }
 
   function zoneLabelPoint(zone) {
@@ -406,6 +487,14 @@
       if (!labelText) continue;
       const target = zoneLabelPoint(zone);
       if (!target) continue;
+      const maxLevel = zoneMaxLevel(zone?.levels);
+      const difficulty = zoneDifficultyStyle(maxLevel);
+      const styleBits = [];
+      if (difficulty.bg) styleBits.push(`background:${difficulty.bg}`);
+      if (difficulty.border) styleBits.push(`border-color:${difficulty.border}`);
+      if (difficulty.text) styleBits.push(`color:${difficulty.text}`);
+      const badgeStyle = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
+      const bossLabel = difficulty.skull ? '<span class="icon" aria-hidden="true">BOSS</span>' : '';
       L.marker(toLL(target[0], target[1]), {
         pane: 'zones-labels',
         interactive: false,
@@ -413,7 +502,7 @@
         bubblingMouseEvents: false,
         icon: L.divIcon({
           className: 'zone-level-icon',
-          html: `<div class="zone-level">${escHtml(labelText)}</div>`,
+          html: `<div class="zone-level"${badgeStyle}>${bossLabel}${escHtml(labelText)}</div>`,
           iconSize: null
         })
       }).addTo(zonesFG);

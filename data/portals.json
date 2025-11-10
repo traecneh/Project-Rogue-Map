@@ -1,0 +1,9 @@
+[
+  { "name": "Silvest <-> Jeel", "entry": { "x": 3208, "y": 3704 }, "exit": { "x": 3608, "y": 3352 } },
+  { "name": "NK <-> Josody", "entry": { "x": 3911, "y": 2615 }, "exit": { "x": 2743, "y": 1655 } },
+  { "name": "NK <-> Hell", "entry": { "x": 3623, "y": 2199 }, "exit": { "x": 2855, "y": 776 } },
+  { "name": "NK <-> Parian", "entry": { "x": 3511, "y": 2599 }, "exit": { "x": 791, "y": 1079 }, "dir":"one" },
+  { "name": "Parian <-> Garnea", "entry": { "x": 791, "y": 1079 }, "exit": { "x": 1409, "y": 1886 }, "dir":"one" },
+  { "name": "Garnea <-> Zonorian", "entry": { "x": 1409, "y": 1886 }, "exit": { "x": 1719, "y": 3447 }, "dir":"one" },
+  { "name": "Zonorian <-> NK", "entry": { "x": 1719, "y": 3447 }, "exit": { "x": 3511, "y": 2599 }, "dir":"one" }
+]

@@ -1,0 +1,6 @@
+[
+  { "name": "NE NK", "entry": { "x": 3848, "y": 2458 }, "exit": { "x": 7942, "y": 2519 } },
+  { "name": "Silvest Cave", "entry": { "x": 3544, "y": 3992 }, "exit": { "x": 7645, "y": 3997 } },
+  { "name": "Silvest Castle", "entry": { "x": 3267, "y": 3981 }, "exit": { "x": 7363, "y": 3981 } },
+  { "name": "NK Thieves", "entry": { "x": 914, "y": 1021 }, "exit": { "x": 5032, "y": 999 } }
+]

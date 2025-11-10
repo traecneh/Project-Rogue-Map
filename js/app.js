@@ -33,13 +33,13 @@
   });
 
   map.createPane('routes').style.zIndex         = 640;
-  map.createPane('labels-portals').style.zIndex = 652;
-  map.createPane('portalLines').style.zIndex    = 653;  // portal connection lines
-  map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('zones').style.zIndex          = 642;
   map.createPane('zones-labels').style.zIndex   = 643;
-  map.createPane('chunk').style.zIndex          = 648;  // under towns/portals
-  map.createPane('caves').style.zIndex          = 654;  // between portal lines and towns
+  map.createPane('chunk').style.zIndex          = 648;  // under portals
+  map.createPane('caves').style.zIndex          = 649;  // under portal markers
+  map.createPane('portalLines').style.zIndex    = 651;  // portal markers
+  map.createPane('labels-portals').style.zIndex = 652;
+  map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('elite').style.zIndex          = 670;
 
   // -------- Layers (only Towns added by default) --------

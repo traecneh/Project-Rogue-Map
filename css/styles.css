@@ -12,6 +12,8 @@
   --town-color:#4cc9f0;   /* Towns - cyan */
   --portal-color:#ff3dc9; /* Portals - magenta */
   --cave-color: #e2f516;  /* Caves - gold (dotted lines) */
+  --poi-color:  #fbbf24;  /* Points of Interest - amber */
+  --crim-color: #fb7185;  /* Crim spawns - rose */
   --zone-color: #f59e0b;  /* Zones - amber */
 }
 * { box-sizing: border-box; }
@@ -101,6 +103,7 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 /* Category accents */
 .n.monster { color: var(--mon-color); }
 .n.town    { color: var(--town-color); }
+.n.poi     { color: var(--poi-color); font-size: 18px; }
 .n.portal  { color: var(--portal-color); }
 
 /* Search highlight (solid bg, preserve original text color) */
@@ -135,6 +138,8 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 .pill-town   { --col: var(--town-color); }
 .pill-portal { --col: var(--portal-color); }
 .pill-cave   { --col: var(--cave-color); }
+.pill-poi    { --col: var(--poi-color); }
+.pill-crim   { --col: var(--crim-color); }
 .pill-zone   { --col: var(--zone-color); }
 
 /* Force pixelated scaling (nearest-neighbor) on the base image */

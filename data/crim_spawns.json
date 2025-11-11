@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Northeast",
+    "x": 1017,
+    "y": 536
+  },
+  {
+    "name": "Desprail",
+    "x": 1752,
+    "y": 985
+  },
+  {
+    "name": "Parian",
+    "x": 760,
+    "y": 1289
+  },
+  {
+    "name": "Ayaress",
+    "x": 1209,
+    "y": 2600
+  },
+  {
+    "name": "Dexmore",
+    "x": 1465,
+    "y": 3560
+  },
+  {
+    "name": "Shadowhaven",
+    "x": 3321,
+    "y": 1385
+  },
+  {
+    "name": "Lopal",
+    "x": 3192,
+    "y": 2745
+  }
+]

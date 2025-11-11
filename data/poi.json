@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Hell",
+    "x": 2947,
+    "y": 743
+  },
+  {
+    "name": "Island of Dread (IoD)",
+    "x": 3195,
+    "y": 743
+  },
+  {
+    "name": "Orc Fort",
+    "x": 3320,
+    "y": 2535
+  },
+  {
+    "name": "Orc Fortress",
+    "x": 1546,
+    "y": 1353
+  },
+  {
+    "name": "Yeti Island",
+    "x": 2404,
+    "y": 3826
+  },
+  {
+    "name": "Frostgrave",
+    "x": 1866,
+    "y": 3900
+  },
+  {
+    "name": "Toxicum",
+    "x": 1680,
+    "y": 2971
+  },
+  {
+    "name": "Necropolis",
+    "x": 329,
+    "y": 2294
+  },
+  {
+    "name": "Vel Dran",
+    "x": 939,
+    "y": 869
+  },
+  {
+    "name": "Badlands",
+    "x": 1306,
+    "y": 1231
+  },
+  {
+    "name": "Valley of Giants",
+    "x": 903,
+    "y": 1150
+  },
+  {
+    "name": "Storm Giant Lair (SGL)",
+    "x": 888,
+    "y": 1460
+  },
+  {
+    "name": "Banished Knight Fortress",
+    "x": 1147,
+    "y": 1900
+  }
+]

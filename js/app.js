@@ -9,7 +9,9 @@
     portals:    './data/portals.json',      // labels and/or connections
     encounters: './data/encounters.json',   // source for Monsters (chunk labels)
     caves:      './data/caves.json',
-    zones:      './data/zones.json'
+    zones:      './data/zones.json',
+    pois:       './data/poi.json',
+    crim:       './data/crim_spawns.json'
   };
 
   const INVERT_Y = true;
@@ -36,6 +38,7 @@
   map.createPane('zones').style.zIndex          = 642;
   map.createPane('zones-labels').style.zIndex   = 643;
   map.createPane('chunk').style.zIndex          = 648;  // under portals
+  map.createPane('crim').style.zIndex           = 649;
   map.createPane('labels-portals').style.zIndex = 652;
   map.createPane('portalLines').style.zIndex    = 653;  // interactive transport nodes (portals/caves)
   map.createPane('labels-towns').style.zIndex   = 655;
@@ -48,6 +51,8 @@
   const routes        = L.featureGroup().addTo(map);
   const chunkFG       = L.featureGroup();          // OFF at load (Monsters)
   const cavesFG       = L.featureGroup();          // OFF at load
+  const crimFG        = L.featureGroup();          // OFF at load
+  const poisFG        = L.layerGroup();            // OFF at load
   const zonesFG       = L.featureGroup();          // OFF at load
   const eliteFG       = L.featureGroup().addTo(map);
 
@@ -64,6 +69,7 @@
   const getZoneColor = () => readCssVar('--zone-color') || '#f59e0b';
   const getCaveColor = () => readCssVar('--cave-color') || '#e2f516';
   const getPortalColor = () => readCssVar('--portal-color') || '#ff3dc9';
+  const getCrimColor = () => readCssVar('--crim-color') || '#fb7185';
 
   // Pills (defaults: Towns ON, others OFF)
   const pillMonsters = $('#pillMonsters');
@@ -71,6 +77,8 @@
   const pillPortals  = $('#pillPortals');
   const pillCaves    = $('#pillCaves');
   const pillZones    = $('#pillZones');
+  const pillPois     = $('#pillPois');
+  const pillCrim     = $('#pillCrim');
   const searchInput  = $('#search');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
@@ -107,10 +115,16 @@
     return [x, INVERT_Y ? (IMG_H - yTop) : yTop];
   }
 
+  const paneByKind = {
+    town: 'labels-towns',
+    poi:  'labels-towns',
+    portal: 'labels-portals'
+  };
+
   function makeLabel(x, y, name, kind) {
     return L.marker(toLL(x, y), {
       icon: nameIcon(`<span class="n ${kind}">${escHtml(name)}</span>`),
-      pane: (kind === 'town' ? 'labels-towns' : 'labels-portals'),
+      pane: paneByKind[kind] || 'labels-portals',
       bubblingMouseEvents: false
     });
   }
@@ -380,6 +394,38 @@
     renderPortalLabels(portalLabelItems);
   }
 
+  // -------- Points of Interest --------
+  function renderPois(arr) {
+    poisFG.clearLayers();
+    for (const item of arr || []) {
+      if (!item || typeof item.name !== 'string') continue;
+      const { name, x, y } = item;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      makeLabel(x, y, name, 'poi').addTo(poisFG);
+    }
+  }
+
+  function renderCrimSpawns(arr) {
+    crimFG.clearLayers();
+    const color = getCrimColor();
+    for (const item of arr || []) {
+      if (!item || typeof item.name !== 'string') continue;
+      const { x, y } = item;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      L.circleMarker(toLL(x, y), {
+        pane: 'crim',
+        radius: 5,
+        color,
+        weight: 1,
+        opacity: 0.9,
+        fillColor: color,
+        fillOpacity: 0.9,
+        interactive: false,
+        bubblingMouseEvents: false
+      }).addTo(crimFG);
+    }
+  }
+
   // -------- Zones (polygons + level badges) --------
   const ZONE_BOSS_LEVEL = 105;
   const ZONE_DIFFICULTY_STEPS = [
@@ -548,6 +594,18 @@
     setLayerVisible(cavesFG, on);
   });
 
+  pillPois?.addEventListener('click', () => {
+    const on = !isOn(pillPois);
+    setPill(pillPois, on);
+    setLayerVisible(poisFG, on);
+  });
+
+  pillCrim?.addEventListener('click', () => {
+    const on = !isOn(pillCrim);
+    setPill(pillCrim, on);
+    setLayerVisible(crimFG, on);
+  });
+
   pillZones?.addEventListener('click', () => {
     const on = !isOn(pillZones);
     setPill(pillZones, on);
@@ -559,7 +617,7 @@
     const q = (searchInput?.value || '').trim();
     currentSearchRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
 
-    const markerGroups = [towns, portalsLblFG];
+    const markerGroups = [towns, portalsLblFG, poisFG];
 
     // reset
     markerGroups.forEach(g => g.eachLayer(layer => {
@@ -619,8 +677,10 @@
       fetch(DATA.portals).then(r => r.json()).catch(() => []),
       fetch(DATA.encounters).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.caves).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(DATA.zones).then(r => r.ok ? r.json() : null).catch(() => null)
-    ]).then(([ts, portalsJson, enc, caves, zonesJson]) => {
+      fetch(DATA.zones).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(DATA.pois).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(DATA.crim).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson]) => {
       // Towns (ON by default)
       for (const it of (ts || [])) {
         const { name, x, y } = it || {};
@@ -645,11 +705,19 @@
         : (Array.isArray(zonesJson) ? zonesJson : null);
       if (zoneList) renderZones(zoneList);
 
+      // POIs (build once; layer OFF until toggled)
+      if (Array.isArray(poisJson)) renderPois(poisJson);
+
+      // Crim spawns
+      if (Array.isArray(crimJson)) renderCrimSpawns(crimJson);
+
       // Set initial pill states
       setPill(pillTowns, true);
       setPill(pillMonsters, false);
       setPill(pillPortals, false);
       setPill(pillCaves, false);
+      setPill(pillPois, false);
+      setPill(pillCrim, false);
       setPill(pillZones, false);
 
       refreshChunkLayer(); // no-op until Monsters ON
@@ -730,6 +798,7 @@
   function markerPriority(spanEl) {
     let score = 1;
     if (spanEl.classList.contains('portal')) score = 2;
+    if (spanEl.classList.contains('poi'))    score = 2;
     if (spanEl.classList.contains('town'))   score = 3;
     if (spanEl.classList.contains('match'))  score += 100;
     return score;

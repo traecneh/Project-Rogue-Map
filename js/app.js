@@ -45,6 +45,21 @@
   map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('elite').style.zIndex          = 670;
 
+  const ICONS = {
+    portal: L.icon({
+      iconUrl: './img/Portal.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      className: 'transport-icon portal-icon'
+    }),
+    cave: L.icon({
+      iconUrl: './img/Cave.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      className: 'transport-icon cave-icon'
+    })
+  };
+
   // -------- Layers (only Towns added by default) --------
   const towns         = L.layerGroup().addTo(map); // ON by default
   const portalsLblFG  = L.layerGroup();            // OFF at load
@@ -68,8 +83,6 @@
     return getComputedStyle(root).getPropertyValue(name).trim();
   };
   const getZoneColor = () => readCssVar('--zone-color') || '#f59e0b';
-  const getCaveColor = () => readCssVar('--cave-color') || '#e2f516';
-  const getPortalColor = () => readCssVar('--portal-color') || '#ff3dc9';
   const getCrimColor = () => readCssVar('--crim-color') || '#fb7185';
 
   // Pills (defaults: Towns ON, others OFF)
@@ -81,6 +94,7 @@
   const pillPois     = $('#pillPois');
   const pillCrim     = $('#pillCrim');
   const searchInput  = $('#search');
+  const btnVibeOut   = $('#btnVibeOut');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
 
@@ -136,11 +150,98 @@
     });
   }
 
+  function randomArrayItem(arr) {
+    if (!Array.isArray(arr) || !arr.length) return null;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function vibeTargets() {
+    const combined = [
+      ...(Array.isArray(window.__townDataCache) ? window.__townDataCache : []),
+      ...(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [])
+    ].filter(it => Number.isFinite(it?.x) && Number.isFinite(it?.y));
+    return combined;
+  }
+
+  const VIBE_TRANSITIONS = [
+    {
+      name: 'fly',
+      run: ({ latlng, duration, targetZoom }) =>
+        map.flyTo(latlng, targetZoom, { duration, easeLinearity: 0.25 })
+    },
+    {
+      name: 'pan',
+      run: ({ latlng, duration, targetZoom, currentZoom }) => {
+        map.panTo(latlng, { animate: true, duration });
+        if (targetZoom !== currentZoom) {
+          map.once('moveend', () => {
+            map.flyTo(latlng, targetZoom, { duration: Math.max(0.6, duration * 0.4), easeLinearity: 0.3 });
+          });
+        }
+      }
+    },
+    {
+      name: 'zoomIn',
+      run: ({ latlng, duration, targetZoom, currentZoom }) => {
+        const zoom = Math.max(currentZoom + 1, targetZoom);
+        map.flyTo(latlng, clamp(zoom, map.getMinZoom(), map.getMaxZoom()), { duration, easeLinearity: 0.35 });
+      }
+    },
+    {
+      name: 'zoomOut',
+      run: ({ latlng, duration, targetZoom, currentZoom }) => {
+        const zoom = Math.min(currentZoom - 1, targetZoom);
+        map.flyTo(latlng, clamp(zoom, map.getMinZoom(), map.getMaxZoom()), { duration, easeLinearity: 0.35 });
+      }
+    },
+    {
+      name: 'portalHop',
+      run: ({ latlng, duration, targetZoom }) =>
+        map.flyTo(latlng, targetZoom, { duration: Math.max(0.6, duration * 0.5), easeLinearity: 0.2 })
+    }
+  ];
+
+  function startVibeLoop() {
+    stopVibeLoop();
+    const hop = () => {
+      const targets = vibeTargets();
+      if (!targets.length) return;
+      const next = randomArrayItem(targets);
+      const latlng = toLL(next.x, next.y);
+      const transition = randomArrayItem(VIBE_TRANSITIONS);
+      const duration = Math.random() * 19 + 1; // 1-20 seconds
+      const zoomOptions = [-2, -1, 0, 1, 2];
+      const currentZoom = map.getZoom();
+      const delta = randomArrayItem(zoomOptions);
+      const targetZoom = clamp(currentZoom + delta, map.getMinZoom(), map.getMaxZoom());
+      transition.run({ latlng, duration, targetZoom, currentZoom });
+      let synced = false;
+      const sync = () => {
+        if (synced) return;
+        synced = true;
+        refreshChunkLayer();
+        rerunCollision();
+      };
+      map.once('moveend', sync);
+      map.once('zoomend', sync);
+      vibeTimer = setTimeout(hop, duration * 1000 + 5000);
+    };
+    hop();
+  }
+
+  function stopVibeLoop() {
+    if (vibeTimer) {
+      clearTimeout(vibeTimer);
+      vibeTimer = null;
+    }
+  }
+
   // -------- Monsters (chunk labels) via encounters.json only --------
   const chunkTiles = new Map();   // key "cx,cy" -> L.Marker
   let encountersIndex = null;     // Map<"cx,cy", string[]>
   let monsterLevels = null;       // Map<monster name, level>
   let currentSearchRegex = null;
+  let vibeTimer = null;
 
   function namesForChunk(cx, cy) {
     if (!encountersIndex) return [];
@@ -310,20 +411,14 @@
   // -------- Caves (paired markers with teleport helper) --------
   function renderCaves(cavesArr) {
     cavesFG.clearLayers();
-    const caveColor = getCaveColor();
-    const markerOpts = {
-      pane: 'portalLines',
-      radius: 6,
-      color: caveColor,
-      weight: 2,
-      opacity: 0.95,
-      fillColor: caveColor,
-      fillOpacity: 0.85,
-      bubblingMouseEvents: false
-    };
-
     const makeMarker = (latLng, partnerLatLng) => {
-      const marker = L.circleMarker(latLng, markerOpts).addTo(cavesFG);
+      const marker = L.marker(latLng, {
+        pane: 'portalLines',
+        icon: ICONS.cave,
+        interactive: true,
+        keyboard: false,
+        bubblingMouseEvents: false
+      }).addTo(cavesFG);
       marker.on('click', () => {
         if (!partnerLatLng) return;
         const minZoom = map.getMinZoom();
@@ -359,21 +454,16 @@
 
   function renderPortalMarkers(arr) {
     portalLinesFG.clearLayers();
-    const portalColor = getPortalColor();
-    const markerOpts = {
-      pane: 'portalLines',
-      radius: 7,
-      color: portalColor,
-      weight: 2,
-      opacity: 0.95,
-      fillColor: portalColor,
-      fillOpacity: 0.85,
-      bubblingMouseEvents: false
-    };
 
     const makePortal = (latLng, partnerLatLng) => {
       const interactive = !!partnerLatLng;
-      const marker = L.circleMarker(latLng, { ...markerOpts, interactive }).addTo(portalLinesFG);
+      const marker = L.marker(latLng, {
+        pane: 'portalLines',
+        icon: ICONS.portal,
+        interactive,
+        keyboard: false,
+        bubblingMouseEvents: false
+      }).addTo(portalLinesFG);
       if (!interactive) return;
       marker.on('click', () => {
         const minZoom = map.getMinZoom();
@@ -706,7 +796,8 @@
       fetch(DATA.monsterLvls).then(r => r.ok ? r.json() : null).catch(() => null)
     ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson, monsterLvlJson]) => {
       // Towns (ON by default)
-      for (const it of (ts || [])) {
+      window.__townDataCache = Array.isArray(ts) ? ts : [];
+      for (const it of window.__townDataCache) {
         const { name, x, y } = it || {};
         if (typeof x !== 'number' || typeof y !== 'number' || !name) continue;
         makeLabel(x, y, name, 'town').addTo(towns);
@@ -730,7 +821,8 @@
       if (zoneList) renderZones(zoneList);
 
       // POIs (build once; layer OFF until toggled)
-      if (Array.isArray(poisJson)) renderPois(poisJson);
+      window.__poiDataCache = Array.isArray(poisJson) ? poisJson : [];
+      renderPois(window.__poiDataCache);
 
       // Crim spawns
       if (Array.isArray(crimJson)) renderCrimSpawns(crimJson);
@@ -752,11 +844,19 @@
       // Set initial pill states
       setPill(pillTowns, true);
       setPill(pillMonsters, false);
-      setPill(pillPortals, false);
-      setPill(pillCaves, false);
+      setPill(pillPortals, true);
+      setPill(pillCaves, true);
       setPill(pillPois, true);
       setPill(pillCrim, false);
       setPill(pillZones, false);
+      setLayerVisible(portalsLblFG, true);
+      setLayerVisible(portalLinesFG, true);
+      setLayerVisible(cavesFG, true);
+      const candidates = vibeTargets();
+      const randomSpot = randomArrayItem(candidates);
+      if (randomSpot) {
+        map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
+      }
 
       refreshChunkLayer(); // no-op until Monsters ON
       rerunCollision();
@@ -804,6 +904,15 @@
   window.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement !== searchInput){ e.preventDefault(); searchInput.focus(); searchInput.select(); }
     else if (e.key === 'Escape' && measuring){ finishMeasure(); }
+  });
+  btnVibeOut?.addEventListener('click', () => {
+    if (btnVibeOut.classList.contains('active')) {
+      btnVibeOut.classList.remove('active');
+      stopVibeLoop();
+    } else {
+      btnVibeOut.classList.add('active');
+      startVibeLoop();
+    }
   });
 
   // -------- Elite (simple rectangle outline) --------

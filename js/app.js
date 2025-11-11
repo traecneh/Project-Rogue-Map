@@ -57,6 +57,12 @@
       iconSize: [32, 32],
       iconAnchor: [16, 16],
       className: 'transport-icon cave-icon'
+    }),
+    crim: L.icon({
+      iconUrl: './img/Crim_Spawn.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      className: 'transport-icon crim-icon'
     })
   };
 
@@ -520,20 +526,15 @@
 
   function renderCrimSpawns(arr) {
     crimFG.clearLayers();
-    const color = getCrimColor();
     for (const item of arr || []) {
       if (!item || typeof item.name !== 'string') continue;
       const { x, y } = item;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-      L.circleMarker(toLL(x, y), {
+      L.marker(toLL(x, y), {
         pane: 'crim',
-        radius: 5,
-        color,
-        weight: 1,
-        opacity: 0.9,
-        fillColor: color,
-        fillOpacity: 0.9,
+        icon: ICONS.crim,
         interactive: false,
+        keyboard: false,
         bubblingMouseEvents: false
       }).addTo(crimFG);
     }

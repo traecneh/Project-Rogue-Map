@@ -1,9 +1,15 @@
 [
   { "name": "Silvest <-> Jeel", "entry": { "x": 3208, "y": 3704 }, "exit": { "x": 3608, "y": 3352 } },
+  { "name": "Guild Quest", "entry": { "x": 1112, "y": 1384 }, "exit": { "x": 5208, "y": 1384 } },
   { "name": "NK <-> Josody", "entry": { "x": 3911, "y": 2615 }, "exit": { "x": 2743, "y": 1655 } },
   { "name": "NK <-> Hell", "entry": { "x": 3623, "y": 2199 }, "exit": { "x": 2855, "y": 776 } },
   { "name": "NK -> Parian", "entry": { "x": 3511, "y": 2599 }, "exit": { "x": 791, "y": 1079 }, "dir":"one" },
   { "name": "Parian -> Garnea", "entry": { "x": 791, "y": 1079 }, "exit": { "x": 1409, "y": 1886 }, "dir":"one" },
   { "name": "Garnea -> Zonorian", "entry": { "x": 1409, "y": 1886 }, "exit": { "x": 1719, "y": 3447 }, "dir":"one" },
-  { "name": "Zonorian -> NK", "entry": { "x": 1719, "y": 3447 }, "exit": { "x": 3511, "y": 2599 }, "dir":"one" }
+  { "name": "Zonorian -> NK", "entry": { "x": 1719, "y": 3447 }, "exit": { "x": 3511, "y": 2599 }, "dir":"one" },
+  { "name": "Badlands East Cave <-> Badlands West Cave", "entry": { "x": 5447, "y": 1159 }, "exit": { "x": 5528, "y": 1224 } },
+  { "name": "Badlands West Cave2", "entry": { "x": 5639, "y": 1225 }, "exit": { "x": 5656, "y": 1175 } },
+  { "name": "Badlands West Cave3", "entry": { "x": 5703, "y": 1224 }, "exit": { "x": 5751, "y": 1255 } },
+  { "name": "Badlands", "entry": { "x": 5847, "y": 1304 }, "exit": { "x": 1416, "y": 1111 }, "dir":"one" },
+  { "name": "Badlands", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 }, "dir":"one" }
 ]

@@ -2,5 +2,15 @@
   { "name": "NE NK", "entry": { "x": 3848, "y": 2458 }, "exit": { "x": 7942, "y": 2519 } },
   { "name": "Silvest Cave", "entry": { "x": 3544, "y": 3992 }, "exit": { "x": 7645, "y": 3997 } },
   { "name": "Silvest Castle", "entry": { "x": 3267, "y": 3981 }, "exit": { "x": 7363, "y": 3981 } },
-  { "name": "NK Thieves", "entry": { "x": 914, "y": 1021 }, "exit": { "x": 5032, "y": 999 } }
+  { "name": "NK Thieves", "entry": { "x": 914, "y": 1021 }, "exit": { "x": 5032, "y": 999 } },
+  { "name": "Parian Guild Master", "entry": { "x": 645, "y": 1057 }, "exit": { "x": 4742, "y": 1058 } },
+  { "name": "Parian West Bank", "entry": { "x": 588, "y": 1068 }, "exit": { "x": 4691, "y": 1053 } },
+  { "name": "Northeast of Darushk", "entry": { "x": 488, "y": 1331 }, "exit": { "x": 4568, "y": 1341 } },
+  { "name": "South of Darushk", "entry": { "x": 360, "y": 1399 }, "exit": { "x": 4463, "y": 1403 } },
+  { "name": "North of Water Castle", "entry": { "x": 261, "y": 1450 }, "exit": { "x": 4357, "y": 1446 } },
+  { "name": "Water Castle", "entry": { "x": 249, "y": 1542 }, "exit": { "x": 4342, "y": 1543 } },
+  { "name": "Storm Giant Lair (SGL)", "entry": { "x": 886, "y": 1468 }, "exit": { "x": 4982, "y": 1468 } },
+  { "name": "Badlands West", "entry": { "x": 1114, "y": 1141 }, "exit": { "x": 5218, "y": 1139 } },
+  { "name": "Centaurs", "entry": { "x": 1548, "y": 1227 }, "exit": { "x": 5660, "y": 1299 } },
+  { "name": "Thornvale", "entry": { "x": 1802, "y": 1309 }, "exit": { "x": 5764, "y": 1290 } }  
 ]

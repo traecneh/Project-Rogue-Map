@@ -97,13 +97,26 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   white-space: nowrap; pointer-events: none;
   text-shadow: 0 0 2px #000, 0 0 3px #000, 0 0 6px rgba(0,0,0,0.8);
 }
+.leaflet-marker-icon.lbl {
+  width: 0;
+  height: 0;
+  overflow: visible;
+}
+.leaflet-marker-icon.lbl .lbl-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: inline-block;
+}
 /* Towns larger (2×) */
 .lbl span.n.town { font-size: 24px; }
+.lbl span.n.poi  { font-size: 24px; }
 
 /* Category accents */
 .n.monster { color: var(--mon-color); }
 .n.town    { color: var(--town-color); }
-.n.poi     { color: var(--poi-color); font-size: 18px; }
+.n.poi     { color: var(--poi-color); }
 .n.portal  { color: var(--portal-color); }
 
 /* Search highlight (solid bg, preserve original text color) */
@@ -179,6 +192,12 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 .chunk-label-inner { color: var(--mon-color); font-weight: 700; text-align: center; line-height: 1.05; }
 .chunk-label-inner.compact { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .chunk-count { display: inline-block; min-width: 22px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #04161c; font-weight: 800; }
+.chunk-label .line { display: block; }
+.chunk-label .line.boss-monster {
+  color: #ff6b6b;
+  text-shadow: 0 0 6px rgba(255, 107, 107, 0.7), 0 0 2px #000;
+  font-weight: 900;
+}
 
 .zone-level-icon { pointer-events: none; }
 .zone-level {
@@ -199,3 +218,4 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   font-size: 12px;
   line-height: 1;
 }
+

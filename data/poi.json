@@ -1,13 +1,38 @@
 [
   {
     "name": "Hell",
-    "x": 2947,
-    "y": 743
+    "x": 2961,
+    "y": 800
+  },
+  {
+    "name": "Jail",
+    "x": 3430,
+    "y": 3175
   },
   {
     "name": "Island of Dread (IoD)",
     "x": 3195,
     "y": 743
+  },
+  {
+    "name": "Dark Monk Abbey",
+    "x": 792,
+    "y": 2364
+  },
+  {
+    "name": "Blue Dragon Valley (BDV)",
+    "x": 472,
+    "y": 1795
+  },
+  {
+    "name": "Ettin Valley (EV)",
+    "x": 3876,
+    "y": 2847
+  },
+  {
+    "name": "Dragons Tri-Spawn",
+    "x": 2339,
+    "y": 1090
   },
   {
     "name": "Orc Fort",

@@ -11,7 +11,8 @@
     caves:      './data/caves.json',
     zones:      './data/zones.json',
     pois:       './data/poi.json',
-    crim:       './data/crim_spawns.json'
+    crim:       './data/crim_spawns.json',
+    monsterLvls:'./data/monster_levels.json'
   };
 
   const INVERT_Y = true;
@@ -52,7 +53,7 @@
   const chunkFG       = L.featureGroup();          // OFF at load (Monsters)
   const cavesFG       = L.featureGroup();          // OFF at load
   const crimFG        = L.featureGroup();          // OFF at load
-  const poisFG        = L.layerGroup();            // OFF at load
+  const poisFG        = L.layerGroup().addTo(map); // ON by default
   const zonesFG       = L.featureGroup();          // OFF at load
   const eliteFG       = L.featureGroup().addTo(map);
 
@@ -86,7 +87,13 @@
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
 
-  function nameIcon(html)  { return L.divIcon({ className: 'lbl', html, iconSize: null }); }
+  function nameIcon(innerHtml)  {
+    return L.divIcon({
+      className: 'lbl',
+      html: `<div class="lbl-inner">${innerHtml}</div>`,
+      iconSize: null
+    });
+  }
 
   function setPanelCollapsed(collapsed) {
     if (!panel) return;
@@ -132,6 +139,7 @@
   // -------- Monsters (chunk labels) via encounters.json only --------
   const chunkTiles = new Map();   // key "cx,cy" -> L.Marker
   let encountersIndex = null;     // Map<"cx,cy", string[]>
+  let monsterLevels = null;       // Map<monster name, level>
   let currentSearchRegex = null;
 
   function namesForChunk(cx, cy) {
@@ -142,6 +150,17 @@
     return currentSearchRegex ? uniq.filter(n => currentSearchRegex.test(n)) : uniq;
   }
 
+  const normalizeMonsterName = name => (name || '').trim().toLowerCase();
+  function monsterLevel(name) {
+    if (!monsterLevels) return null;
+    const lvl = monsterLevels.get(normalizeMonsterName(name));
+    return Number.isFinite(lvl) ? lvl : null;
+  }
+  function isBossMonster(name) {
+    const lvl = monsterLevel(name);
+    return Number.isFinite(lvl) && lvl >= ZONE_BOSS_LEVEL;
+  }
+
   function chunkBounds(cx, cy) {
     const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
     return L.latLngBounds(toLL(x0, y0), toLL(x0 + CHUNK_SIZE, y0 + CHUNK_SIZE));
@@ -150,7 +169,11 @@
   function applyInner(el, w, h, names) {
     const inner = el.querySelector('.chunk-label-inner'); if (!inner) return;
     inner.classList.remove('compact');
-    inner.innerHTML = names.map(n => `<div class="line">${escHtml(n)}</div>`).join('');
+    inner.innerHTML = names.map(n => {
+      const boss = isBossMonster(n);
+      const cls = boss ? 'line boss-monster' : 'line';
+      return `<div class="${cls}">${escHtml(n)}</div>`;
+    }).join('');
     // shrink-to-fit
     const padW = Math.max(0, w - 4), padH = Math.max(0, h - 4);
     let fs = 16;
@@ -679,8 +702,9 @@
       fetch(DATA.caves).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.zones).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.pois).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(DATA.crim).then(r => r.ok ? r.json() : null).catch(() => null)
-    ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson]) => {
+      fetch(DATA.crim).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(DATA.monsterLvls).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson, monsterLvlJson]) => {
       // Towns (ON by default)
       for (const it of (ts || [])) {
         const { name, x, y } = it || {};
@@ -711,12 +735,26 @@
       // Crim spawns
       if (Array.isArray(crimJson)) renderCrimSpawns(crimJson);
 
+      // Monster levels lookup
+      if (monsterLvlJson && typeof monsterLvlJson === 'object') {
+        monsterLevels = new Map();
+        for (const [name, lvl] of Object.entries(monsterLvlJson)) {
+          const normalized = normalizeMonsterName(name);
+          if (!normalized) continue;
+          const num = Number(lvl);
+          if (!Number.isFinite(num)) continue;
+          monsterLevels.set(normalized, num);
+        }
+      } else {
+        monsterLevels = null;
+      }
+
       // Set initial pill states
       setPill(pillTowns, true);
       setPill(pillMonsters, false);
       setPill(pillPortals, false);
       setPill(pillCaves, false);
-      setPill(pillPois, false);
+      setPill(pillPois, true);
       setPill(pillCrim, false);
       setPill(pillZones, false);
 
@@ -735,7 +773,7 @@
   };
 
   // -------- Measure (unchanged) --------
-  let measuring = false, allowMeasureHotkey = true;
+  let measuring = false;
   let poly = null,  verts = [], dotMarkers = [];
   const btnMeasure = $('#btnMeasure');
   const btnClear   = $('#btnClear');
@@ -748,7 +786,7 @@
   function fmtTime(sec){ if (sec<60) return `${sec.toFixed(1)}s`; let s=Math.round(sec), h=Math.floor(s/3600); s%=3600; let m=Math.floor(s/60), r=s%60; const out=[]; if(h) out.push(`${h}h`); if(m) out.push(`${m}m`); if(r||(!h&&!m)) out.push(`${r}s`); return out.join(' '); }
   function updateStats(){ const t = tilesLen(verts), secs = t / tilesPerSecond; if (stats) stats.textContent = `Time: ${fmtTime(secs)} (${t} tiles)`; }
   function startMeasure(){ measuring=true; btnMeasure?.classList.add('active'); map.doubleClickZoom.disable(); verts=[]; if (poly){ routes.removeLayer(poly); poly=null; } for (const d of dotMarkers){ routes.removeLayer(d); } dotMarkers=[]; updateStats(); }
-  function finishMeasure(){ measuring=false; btnMeasure?.classList.remove('active'); map.doubleClickZoom.enable(); allowMeasureHotkey=false; }
+  function finishMeasure(){ measuring=false; btnMeasure?.classList.remove('active'); map.doubleClickZoom.enable(); }
   function toggleMeasure(){ measuring ? finishMeasure() : startMeasure(); }
   btnMeasure?.addEventListener('click', toggleMeasure);
   btnClear  ?.addEventListener('click', () => { verts=[]; if (poly){ routes.removeLayer(poly); poly=null; } for (const d of dotMarkers){ routes.removeLayer(d); } dotMarkers=[]; updateStats(); });
@@ -765,7 +803,6 @@
   map.on('dblclick', () => { if (measuring) finishMeasure(); });
   window.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement !== searchInput){ e.preventDefault(); searchInput.focus(); searchInput.select(); }
-    else if (e.key.toLowerCase() === 'm' && !measuring && allowMeasureHotkey){ startMeasure(); }
     else if (e.key === 'Escape' && measuring){ finishMeasure(); }
   });
 

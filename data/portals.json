@@ -11,5 +11,7 @@
   { "name": "Badlands West Cave2", "entry": { "x": 5639, "y": 1225 }, "exit": { "x": 5656, "y": 1175 } },
   { "name": "Badlands West Cave3", "entry": { "x": 5703, "y": 1224 }, "exit": { "x": 5751, "y": 1255 } },
   { "name": "Badlands", "entry": { "x": 5847, "y": 1304 }, "exit": { "x": 1416, "y": 1111 }, "dir":"one" },
-  { "name": "Badlands", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 }, "dir":"one" }
+  { "name": "Badlands", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 }, "dir":"one" },
+  { "name": "Shadowhaven <-> Arena", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 } },
+  { "name": "Crestshore Battlegrounds <-> Parian Battlegrounds", "entry": { "x": 2752, "y": 1147 }, "exit": { "x": 584, "y": 888 } }
 ]

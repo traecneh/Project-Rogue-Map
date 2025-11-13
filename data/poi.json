@@ -11,8 +11,13 @@
   },
   {
     "name": "Battlegrounds",
+    "x": 2752,
+    "y": 1134
+  },
+  {
+    "name": "Battlegrounds",
     "x": 586,
-    "y": 880
+    "y": 868
   },
   {
     "name": "Water Castle",

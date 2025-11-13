@@ -1,4 +1,9 @@
 [
+  { "name": "BK Castle Northwest", "entry": { "x": 1095, "y": 1862 }, "exit": { "x": 5176, "y": 1895 } },
+  { "name": "BK Castle Northeast", "entry": { "x": 1190, "y": 1884 }, "exit": { "x": 5272, "y": 1895 } },
+  { "name": "BK Castle South Inner", "entry": { "x": 5261, "y": 1971 }, "exit": { "x": 1154, "y": 1973 } },
+  { "name": "East Garnea", "entry": { "x": 1481, "y": 1882 }, "exit": { "x": 5577, "y": 1879 } },
+  { "name": "SW Garnea", "entry": { "x": 1336, "y": 1944 }, "exit": { "x": 5432, "y": 1944 } },
   { "name": "NE NK", "entry": { "x": 3848, "y": 2458 }, "exit": { "x": 7942, "y": 2519 } },
   { "name": "Silvest Cave", "entry": { "x": 3544, "y": 3992 }, "exit": { "x": 7645, "y": 3997 } },
   { "name": "Silvest Castle", "entry": { "x": 3267, "y": 3981 }, "exit": { "x": 7363, "y": 3981 } },
@@ -12,5 +17,11 @@
   { "name": "Storm Giant Lair (SGL)", "entry": { "x": 886, "y": 1468 }, "exit": { "x": 4982, "y": 1468 } },
   { "name": "Badlands West", "entry": { "x": 1114, "y": 1141 }, "exit": { "x": 5218, "y": 1139 } },
   { "name": "Centaurs", "entry": { "x": 1548, "y": 1227 }, "exit": { "x": 5660, "y": 1299 } },
-  { "name": "Thornvale", "entry": { "x": 1802, "y": 1309 }, "exit": { "x": 5764, "y": 1290 } }  
+  { "name": "Thornvale", "entry": { "x": 1802, "y": 1309 }, "exit": { "x": 5764, "y": 1290 } },
+  { "name": "Ryunkah's Crypt North", "entry": { "x": 3067, "y": 1113 }, "exit": { "x": 7164, "y": 1115 } },
+  { "name": "Ryunkah's Crypt South", "entry": { "x": 3139, "y": 1287 }, "exit": { "x": 7308, "y": 1179 } },
+  { "name": "Nightmares", "entry": { "x": 760, "y": 819 }, "exit": { "x": 4963, "y": 772 } },
+  { "name": "Nightmares", "entry": { "x": 4888, "y": 804 }, "exit": { "x": 813, "y": 792 } },
+  { "name": "Vel Dran", "entry": { "x": 935, "y": 901 }, "exit": { "x": 4995, "y": 901 } },
+  { "name": "Grell", "entry": { "x": 856, "y": 598 }, "exit": { "x": 5337, "y": 618 } }
 ]

@@ -50,6 +50,11 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 .group { margin: 12px 0; border-top: 1px solid #1a2027; padding-top: 12px; }
 .group:first-of-type { border-top: 0; padding-top: 0; }
 .group-title { font-weight: 700; margin-bottom: 8px; color: var(--muted); }
+.group.codex-link {
+  margin-top: 20px;
+  padding-top: 18px;
+  text-align: center;
+}
 
 /* Inputs */
 .search-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
@@ -84,6 +89,15 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   border-color: color-mix(in oklab, var(--accent) 60%, #1a2027 40%);
   box-shadow: 0 0 0 3px rgba(76,201,240,0.12);
   background: #111720;
+}
+.btn-codex {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  margin: 10px auto 0;
+  min-width: 0;
 }
 #btnMeasure.active, #btnEliteShow.active, #btnVibeOut.active {
   border-color: var(--accent); box-shadow: 0 0 0 3px rgba(76,201,240,0.18);

@@ -253,8 +253,17 @@
     if (!encountersIndex) return [];
     const arr = encountersIndex.get(`${cx},${cy}`);
     if (!Array.isArray(arr) || !arr.length) return [];
-    const uniq = Array.from(new Set(arr)).sort((a, b) => a.localeCompare(b));
-    return currentSearchRegex ? uniq.filter(n => currentSearchRegex.test(n)) : uniq;
+    const uniq = Array.from(new Set(arr));
+    const sorted = uniq
+      .map(name => ({ name, level: monsterLevel(name) }))
+      .sort((a, b) => {
+        const la = Number.isFinite(a.level) ? a.level : -Infinity;
+        const lb = Number.isFinite(b.level) ? b.level : -Infinity;
+        if (lb !== la) return lb - la;
+        return a.name.localeCompare(b.name);
+      })
+      .map(entry => entry.name);
+    return currentSearchRegex ? sorted.filter(n => currentSearchRegex.test(n)) : sorted;
   }
 
   const normalizeMonsterName = name => (name || '').trim().toLowerCase();
@@ -267,6 +276,27 @@
     const lvl = monsterLevel(name);
     return Number.isFinite(lvl) && lvl >= ZONE_BOSS_LEVEL;
   }
+  function monsterDifficultyColor(level) {
+    if (!Number.isFinite(level)) return null;
+    const difficulty = zoneDifficultyStyle(level);
+    if (!difficulty) return null;
+    return difficulty.bg || difficulty.text || null;
+  }
+  function selectTopMonster(names) {
+    if (!Array.isArray(names) || !names.length) return null;
+    let bestName = null;
+    let bestLevel = -Infinity;
+    for (const name of names) {
+      const lvl = monsterLevel(name);
+      if (Number.isFinite(lvl) && (bestName === null || lvl > bestLevel)) {
+        bestName = name;
+        bestLevel = lvl;
+      }
+    }
+    if (bestName) return { name: bestName, level: bestLevel };
+    const fallbackName = names[0];
+    return fallbackName ? { name: fallbackName, level: monsterLevel(fallbackName) } : null;
+  }
 
   function chunkBounds(cx, cy) {
     const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
@@ -278,8 +308,11 @@
     inner.classList.remove('compact');
     inner.innerHTML = names.map(n => {
       const boss = isBossMonster(n);
+      const lvl = monsterLevel(n);
+      const tint = !boss ? monsterDifficultyColor(lvl) : null;
       const cls = boss ? 'line boss-monster' : 'line';
-      return `<div class="${cls}">${escHtml(n)}</div>`;
+      const styleAttr = tint ? ` style="color:${tint}"` : '';
+      return `<div class="${cls}"${styleAttr}>${escHtml(n)}</div>`;
     }).join('');
     // shrink-to-fit
     const padW = Math.max(0, w - 4), padH = Math.max(0, h - 4);
@@ -291,7 +324,19 @@
     }
     if (fs < 8) {
       inner.classList.add('compact');
-      inner.innerHTML = `<span class="chunk-count">${names.length}</span>`;
+      const top = selectTopMonster(names);
+      if (top && Number.isFinite(top.level)) {
+        const cls = isBossMonster(top.name) ? 'chunk-top-level boss-monster' : 'chunk-top-level';
+        const difficulty = zoneDifficultyStyle(top.level);
+        const styleBits = [];
+        if (difficulty?.bg) styleBits.push(`background:${difficulty.bg}`);
+        if (difficulty?.border) styleBits.push(`border-color:${difficulty.border}`);
+        if (difficulty?.text) styleBits.push(`color:${difficulty.text}`);
+        const styleAttr = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
+        inner.innerHTML = `<span class="${cls}"${styleAttr}>${escHtml(top.level)}</span>`;
+      } else {
+        inner.innerHTML = `<span class="chunk-count">${names.length}</span>`;
+      }
     }
   }
 

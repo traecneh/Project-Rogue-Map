@@ -205,12 +205,44 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 }
 .chunk-label-inner { color: var(--mon-color); font-weight: 700; text-align: center; line-height: 1.05; }
 .chunk-label-inner.compact { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.chunk-top-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 3px 10px;
+  border-radius: 16px;
+  background: rgba(12, 16, 21, 0.85);
+  border: 1px solid rgba(76,201,240,0.35);
+  color: var(--accent);
+  font-weight: 900;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
 .chunk-count { display: inline-block; min-width: 22px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #04161c; font-weight: 800; }
-.chunk-label .line { display: block; }
+.chunk-label .line {
+  display: block;
+  text-shadow:
+    -1px 0 #000,
+     1px 0 #000,
+     0 -1px #000,
+     0 1px #000;
+}
 .chunk-label .line.boss-monster {
   color: #ff6b6b;
-  text-shadow: 0 0 6px rgba(255, 107, 107, 0.7), 0 0 2px #000;
+  text-shadow:
+    -1px 0 #000,
+     1px 0 #000,
+     0 -1px #000,
+     0 1px #000,
+     0 0 6px rgba(255, 107, 107, 0.7),
+     0 0 2px #000;
   font-weight: 900;
+}
+.chunk-top-level.boss-monster {
+  color: #ff6b6b;
+  text-shadow: 0 0 6px rgba(255, 107, 107, 0.7), 0 0 2px #000;
 }
 
 .zone-level-icon { pointer-events: none; }

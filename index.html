@@ -73,6 +73,40 @@
       </section>
 
       <section class="group">
+        <div class="group-title">Monster Level Filter</div>
+        <div class="monster-filter" aria-live="polite">
+          <div class="monster-filter-row">
+            <label for="monsterLevelMin">Min level</label>
+            <select id="monsterLevelMin" class="select-control" disabled>
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="monster-filter-row">
+            <label for="monsterLevelMax">Max level</label>
+            <select id="monsterLevelMax" class="select-control" disabled>
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="monster-filter-exclusive">
+            <span class="monster-filter-exclusive-label">Exclusive</span>
+            <button
+              id="monsterLevelExclusive"
+              type="button"
+              class="toggle-btn"
+              disabled
+              aria-pressed="false"
+              title="Only show encounters where every monster fits the selected range"
+            >
+              Off
+            </button>
+          </div>
+          <div id="monsterLevelFilterStatus" class="monster-filter-hint">
+            Loading monster levels...
+          </div>
+        </div>
+      </section>
+
+      <section class="group">
         <div class="group-title">Coordinates</div>
         <div id="coordStats" class="coords" aria-live="polite">
           <span class="pill"><span class="lbl">X</span><span class="val">—</span></span>

@@ -18,6 +18,9 @@
   const INVERT_Y = true;
   const ZOOM_OUT_EXTRA = 3;
   const MATCH_ZINDEX_OFFSET = 10000;
+  const MONSTER_FILTER_HINT_DEFAULT = 'Showing all levels. Set min/max to filter.';
+  const MONSTER_FILTER_HINT_UNAVAILABLE = 'Monster level data unavailable.';
+  const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode.';
 
   // Chunk constants
   const CHUNK_SIZE = 16;          // pixels per chunk
@@ -100,6 +103,10 @@
   const pillPois     = $('#pillPois');
   const pillCrim     = $('#pillCrim');
   const searchInput  = $('#search');
+  const monsterLevelMinSelect = $('#monsterLevelMin');
+  const monsterLevelMaxSelect = $('#monsterLevelMax');
+  const monsterLevelExclusiveBtn = $('#monsterLevelExclusive');
+  const monsterLevelFilterStatus = $('#monsterLevelFilterStatus');
   const btnVibeOut   = $('#btnVibeOut');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
@@ -246,6 +253,10 @@
   const chunkTiles = new Map();   // key "cx,cy" -> L.Marker
   let encountersIndex = null;     // Map<"cx,cy", string[]>
   let monsterLevels = null;       // Map<monster name, level>
+  let monsterLevelValues = [];    // Unique sorted level list for filter UI
+  let monsterFilterMin = null;
+  let monsterFilterMax = null;
+  let monsterFilterExclusive = false;
   let currentSearchRegex = null;
   let vibeTimer = null;
 
@@ -254,16 +265,21 @@
     const arr = encountersIndex.get(`${cx},${cy}`);
     if (!Array.isArray(arr) || !arr.length) return [];
     const uniq = Array.from(new Set(arr));
-    const sorted = uniq
+    const sortedEntries = uniq
       .map(name => ({ name, level: monsterLevel(name) }))
       .sort((a, b) => {
         const la = Number.isFinite(a.level) ? a.level : -Infinity;
         const lb = Number.isFinite(b.level) ? b.level : -Infinity;
         if (lb !== la) return lb - la;
         return a.name.localeCompare(b.name);
-      })
-      .map(entry => entry.name);
-    return currentSearchRegex ? sorted.filter(n => currentSearchRegex.test(n)) : sorted;
+      });
+    const filtered = sortedEntries.filter(entry => passesMonsterLevelFilter(entry.level));
+    if (!filtered.length) return [];
+    if (monsterFilterExclusive && monsterLevelFilterActive() && filtered.length !== sortedEntries.length) {
+      return [];
+    }
+    const names = filtered.map(entry => entry.name);
+    return currentSearchRegex ? names.filter(n => currentSearchRegex.test(n)) : names;
   }
 
   const normalizeMonsterName = name => (name || '').trim().toLowerCase();
@@ -272,6 +288,133 @@
     const lvl = monsterLevels.get(normalizeMonsterName(name));
     return Number.isFinite(lvl) ? lvl : null;
   }
+
+  function monsterLevelFilterActive() {
+    return Number.isFinite(monsterFilterMin) || Number.isFinite(monsterFilterMax);
+  }
+
+  function passesMonsterLevelFilter(level) {
+    if (!monsterLevelFilterActive()) return true;
+    if (!Number.isFinite(level)) return false;
+    if (Number.isFinite(monsterFilterMin) && level < monsterFilterMin) return false;
+    if (Number.isFinite(monsterFilterMax) && level > monsterFilterMax) return false;
+    return true;
+  }
+
+  function optionValueFromLevel(value) {
+    return Number.isFinite(value) ? String(value) : '';
+  }
+
+  function parseMonsterLevelValue(raw) {
+    if (raw === '' || raw === undefined || raw === null) return null;
+    const num = Number(raw);
+    return Number.isFinite(num) ? num : null;
+  }
+
+  function syncMonsterLevelExclusiveBtn() {
+    if (!monsterLevelExclusiveBtn) return;
+    monsterLevelExclusiveBtn.classList.toggle('on', monsterFilterExclusive);
+    monsterLevelExclusiveBtn.setAttribute('aria-pressed', monsterFilterExclusive ? 'true' : 'false');
+    monsterLevelExclusiveBtn.textContent = monsterFilterExclusive ? 'On' : 'Off';
+  }
+
+  function setMonsterLevelExclusive(next) {
+    const normalized = !!next && monsterLevelValues.length > 0;
+    if (monsterFilterExclusive === normalized) {
+      syncMonsterLevelExclusiveBtn();
+      updateMonsterLevelFilterStatus();
+      return;
+    }
+    monsterFilterExclusive = normalized;
+    syncMonsterLevelExclusiveBtn();
+    updateMonsterLevelFilterStatus();
+    if (isOn(pillMonsters)) refreshChunkLayer();
+  }
+
+  function updateMonsterLevelSelectOptions() {
+    const levels = monsterLevels
+      ? Array.from(new Set(Array.from(monsterLevels.values()).filter(Number.isFinite))).sort((a, b) => a - b)
+      : [];
+    monsterLevelValues = levels;
+    if (!monsterLevelValues.includes(monsterFilterMin)) monsterFilterMin = null;
+    if (!monsterLevelValues.includes(monsterFilterMax)) monsterFilterMax = null;
+    const html = ['<option value="">Any</option>', ...monsterLevelValues.map(lvl => `<option value="${lvl}">${lvl}</option>`)].join('');
+    if (monsterLevelMinSelect) {
+      monsterLevelMinSelect.innerHTML = html;
+      monsterLevelMinSelect.disabled = monsterLevelValues.length === 0;
+      monsterLevelMinSelect.value = optionValueFromLevel(monsterFilterMin);
+    }
+    if (monsterLevelMaxSelect) {
+      monsterLevelMaxSelect.innerHTML = html;
+      monsterLevelMaxSelect.disabled = monsterLevelValues.length === 0;
+      monsterLevelMaxSelect.value = optionValueFromLevel(monsterFilterMax);
+    }
+    if (monsterLevelExclusiveBtn) {
+      monsterLevelExclusiveBtn.disabled = monsterLevelValues.length === 0;
+    }
+    if (!monsterLevelValues.length && monsterFilterExclusive) {
+      setMonsterLevelExclusive(false);
+    } else {
+      syncMonsterLevelExclusiveBtn();
+      updateMonsterLevelFilterStatus();
+    }
+  }
+
+  function updateMonsterLevelFilterStatus() {
+    if (!monsterLevelFilterStatus) return;
+    if (!monsterLevelValues.length) {
+      monsterLevelFilterStatus.textContent = MONSTER_FILTER_HINT_UNAVAILABLE;
+      return;
+    }
+    if (!monsterLevelFilterActive()) {
+      monsterLevelFilterStatus.textContent = monsterFilterExclusive
+        ? MONSTER_FILTER_HINT_NEED_RANGE
+        : MONSTER_FILTER_HINT_DEFAULT;
+      return;
+    }
+    const hasMin = Number.isFinite(monsterFilterMin);
+    const hasMax = Number.isFinite(monsterFilterMax);
+    let text = '';
+    if (hasMin && hasMax) {
+      text = monsterFilterMin === monsterFilterMax
+        ? `Filtering level ${monsterFilterMin}`
+        : `Filtering levels ${monsterFilterMin} to ${monsterFilterMax}`;
+    } else if (hasMin) {
+      text = `Filtering levels ${monsterFilterMin}+`;
+    } else if (hasMax) {
+      text = `Filtering levels up to ${monsterFilterMax}`;
+    }
+    if (monsterFilterExclusive) {
+      text = text ? `${text} · Exclusive` : 'Exclusive';
+    }
+    monsterLevelFilterStatus.textContent = text || MONSTER_FILTER_HINT_DEFAULT;
+  }
+
+  function enforceMonsterLevelRange(whichChanged) {
+    const hasMin = Number.isFinite(monsterFilterMin);
+    const hasMax = Number.isFinite(monsterFilterMax);
+    if (!hasMin || !hasMax) return;
+    if (monsterFilterMin <= monsterFilterMax) return;
+    if (whichChanged === 'min') {
+      monsterFilterMax = monsterFilterMin;
+      if (monsterLevelMaxSelect) monsterLevelMaxSelect.value = optionValueFromLevel(monsterFilterMax);
+    } else {
+      monsterFilterMin = monsterFilterMax;
+      if (monsterLevelMinSelect) monsterLevelMinSelect.value = optionValueFromLevel(monsterFilterMin);
+    }
+  }
+
+  function handleMonsterLevelSelectChange(which) {
+    if (which === 'min') {
+      monsterFilterMin = parseMonsterLevelValue(monsterLevelMinSelect?.value);
+    } else {
+      monsterFilterMax = parseMonsterLevelValue(monsterLevelMaxSelect?.value);
+    }
+    enforceMonsterLevelRange(which);
+    updateMonsterLevelFilterStatus();
+    if (isOn(pillMonsters)) refreshChunkLayer();
+  }
+
   function isBossMonster(name) {
     const lvl = monsterLevel(name);
     return Number.isFinite(lvl) && lvl >= ZONE_BOSS_LEVEL;
@@ -804,6 +947,10 @@
     rerunCollision();
   }, 120);
   searchInput?.addEventListener('input', applySearch);
+  monsterLevelMinSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('min'));
+  monsterLevelMaxSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('max'));
+  monsterLevelExclusiveBtn?.addEventListener('click', () => setMonsterLevelExclusive(!monsterFilterExclusive));
+  syncMonsterLevelExclusiveBtn();
 
   // -------- Image/map load --------
   const baseImg = new Image();
@@ -886,6 +1033,7 @@
       } else {
         monsterLevels = null;
       }
+      updateMonsterLevelSelectOptions();
 
       // Set initial pill states
       setPill(pillTowns, true);

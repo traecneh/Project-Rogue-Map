@@ -112,6 +112,7 @@
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
   const SEARCH_PARAM_KEYS = ['search', 'q'];
+  const SEARCH_CLUSTER_RADIUS = 1; // how many chunks around the center to score
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
@@ -989,7 +990,7 @@
   });
 
   // -------- Search (affects towns/portal labels + chunk labels) --------
-  const applySearch = debounce(() => {
+  function runSearch() {
     const q = (searchInput?.value || '').trim();
     persistSearchToUrl(q);
     currentSearchRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
@@ -1020,13 +1021,84 @@
 
     refreshChunkLayer();
     rerunCollision();
-  }, 120);
+  }
+  const applySearch = debounce(runSearch, 120);
   searchInput?.addEventListener('input', applySearch);
   const initialSearchTerm = readSearchFromUrl();
+  const startedWithSearch = !!(initialSearchTerm && initialSearchTerm.trim());
   if (initialSearchTerm && searchInput) {
     searchInput.value = initialSearchTerm;
-    applySearch();
+    runSearch(); // immediate for deep links
   }
+  function ensureMonstersLayerOn(requestRefresh = false) {
+    const wasOff = !isOn(pillMonsters);
+    if (wasOff) {
+      setPill(pillMonsters, true);
+      setLayerVisible(chunkFG, true);
+    }
+    if (requestRefresh || wasOff) {
+      const zoomAdjusted = ensureMonstersZoom();
+      if (zoomAdjusted) map.once('zoomend', refreshChunkLayer);
+      else refreshChunkLayer();
+    }
+  }
+
+  function chunkSearchMatchCount(names) {
+    if (!currentSearchRegex || !Array.isArray(names) || !names.length) return 0;
+    let hits = 0;
+    for (const n of names) {
+      if (typeof n !== 'string') continue;
+      if (currentSearchRegex.test(n)) hits++;
+    }
+    return hits;
+  }
+
+  function bestSearchClusterCenter() {
+    if (!currentSearchRegex || !encountersIndex?.size) return null;
+    const counts = new Map();
+    for (const [key, arr] of encountersIndex.entries()) {
+      const matches = chunkSearchMatchCount(arr);
+      if (!matches) continue;
+      counts.set(key, matches);
+    }
+    if (!counts.size) return null;
+
+    let best = null;
+    for (const key of counts.keys()) {
+      const [cxRaw, cyRaw] = key.split(',').map(n => Number(n));
+      if (!Number.isFinite(cxRaw) || !Number.isFinite(cyRaw)) continue;
+      let sum = 0, wx = 0, wy = 0;
+      for (let dy = -SEARCH_CLUSTER_RADIUS; dy <= SEARCH_CLUSTER_RADIUS; dy++) {
+        for (let dx = -SEARCH_CLUSTER_RADIUS; dx <= SEARCH_CLUSTER_RADIUS; dx++) {
+          const neighborKey = `${cxRaw + dx},${cyRaw + dy}`;
+          const val = counts.get(neighborKey);
+          if (!val) continue;
+          sum += val;
+          wx += (cxRaw + dx) * val;
+          wy += (cyRaw + dy) * val;
+        }
+      }
+      if (!best || sum > best.sum) {
+        best = { sum, wx, wy };
+      }
+    }
+    if (!best || best.sum <= 0) return null;
+    return { cx: best.wx / best.sum, cy: best.wy / best.sum };
+  }
+
+  function focusOnSearchMatches() {
+    const center = bestSearchClusterCenter();
+    if (!center) return false;
+    const cxCenter = (center.cx + 0.5) * CHUNK_SIZE;
+    const cyCenter = (center.cy + 0.5) * CHUNK_SIZE;
+    const maxZoom = map.getMaxZoom();
+    const targetZoom = Number.isFinite(maxZoom)
+      ? Math.min(maxZoom, Math.max(map.getZoom(), maxZoom - 1))
+      : map.getZoom();
+    map.flyTo(toLL(cxCenter, cyCenter), targetZoom, { animate: true, duration: 0.8 });
+    return true;
+  }
+
   monsterLevelMinSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('min'));
   monsterLevelMaxSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('max'));
   monsterLevelExclusiveBtn?.addEventListener('click', () => setMonsterLevelExclusive(!monsterFilterExclusive));
@@ -1126,13 +1198,28 @@
       setLayerVisible(portalsLblFG, true);
       setLayerVisible(portalLinesFG, true);
       setLayerVisible(cavesFG, true);
-      const candidates = vibeTargets();
-      const randomSpot = randomArrayItem(candidates);
-      if (randomSpot) {
-        map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
+      const hasActiveSearch = !!(searchInput?.value && searchInput.value.trim());
+      if (hasActiveSearch) runSearch(); // apply search to freshly-added labels
+
+      let refreshedViaSearch = false;
+      if (startedWithSearch && hasActiveSearch) {
+        ensureMonstersLayerOn(true);
+        refreshedViaSearch = true;
+        const focused = focusOnSearchMatches();
+        if (!focused) {
+          const candidates = vibeTargets();
+          const randomSpot = randomArrayItem(candidates);
+          if (randomSpot) map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
+        }
+      } else {
+        const candidates = vibeTargets();
+        const randomSpot = randomArrayItem(candidates);
+        if (randomSpot) {
+          map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
+        }
       }
 
-      refreshChunkLayer(); // no-op until Monsters ON
+      if (!refreshedViaSearch) refreshChunkLayer(); // no-op until Monsters ON
       rerunCollision();
     });
 

@@ -111,9 +111,31 @@
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
+  const SEARCH_PARAM_KEYS = ['search', 'q'];
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
+
+  function readSearchFromUrl() {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    for (const key of SEARCH_PARAM_KEYS) {
+      const val = params.get(key);
+      if (typeof val === 'string' && val.trim()) return val.trim();
+    }
+    return '';
+  }
+
+  function persistSearchToUrl(term) {
+    if (typeof window === 'undefined' || !window.history?.replaceState) return;
+    const params = new URLSearchParams(window.location.search);
+    SEARCH_PARAM_KEYS.forEach(k => params.delete(k));
+    const clean = (term || '').trim();
+    if (clean) params.set(SEARCH_PARAM_KEYS[0], clean);
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? '?' + qs : ''}${window.location.hash || ''}`;
+    window.history.replaceState(null, '', next);
+  }
 
   function nameIcon(innerHtml)  {
     return L.divIcon({
@@ -969,6 +991,7 @@
   // -------- Search (affects towns/portal labels + chunk labels) --------
   const applySearch = debounce(() => {
     const q = (searchInput?.value || '').trim();
+    persistSearchToUrl(q);
     currentSearchRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
 
     const markerGroups = [towns, portalsLblFG, poisFG];
@@ -999,6 +1022,11 @@
     rerunCollision();
   }, 120);
   searchInput?.addEventListener('input', applySearch);
+  const initialSearchTerm = readSearchFromUrl();
+  if (initialSearchTerm && searchInput) {
+    searchInput.value = initialSearchTerm;
+    applySearch();
+  }
   monsterLevelMinSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('min'));
   monsterLevelMaxSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('max'));
   monsterLevelExclusiveBtn?.addEventListener('click', () => setMonsterLevelExclusive(!monsterFilterExclusive));

@@ -110,6 +110,7 @@
   const btnVibeOut   = $('#btnVibeOut');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
+  const codexLogoImg = $('#codexLogo');
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
@@ -168,6 +169,14 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  const randomInRange = (min, max) => Math.random() * (max - min) + min;
+  const CODEX_LOGOS = ['./img/codex-logo-1.png', './img/codex-logo-2.png'];
+
+  if (codexLogoImg) {
+    const pick = randomArrayItem(CODEX_LOGOS) || CODEX_LOGOS[0];
+    codexLogoImg.src = pick;
+  }
+
   function vibeTargets() {
     const combined = [
       ...(Array.isArray(window.__townDataCache) ? window.__townDataCache : []),
@@ -176,58 +185,97 @@
     return combined;
   }
 
-  const VIBE_TRANSITIONS = [
-    {
-      name: 'fly',
-      run: ({ latlng, duration, targetZoom }) =>
-        map.flyTo(latlng, targetZoom, { duration, easeLinearity: 0.25 })
-    },
-    {
-      name: 'pan',
-      run: ({ latlng, duration, targetZoom, currentZoom }) => {
-        map.panTo(latlng, { animate: true, duration });
-        if (targetZoom !== currentZoom) {
-          map.once('moveend', () => {
-            map.flyTo(latlng, targetZoom, { duration: Math.max(0.6, duration * 0.4), easeLinearity: 0.3 });
-          });
-        }
+  const VIBE_NEAR_RADIUS = 1600;
+  const VIBE_NEIGHBOR_LIMIT = 6;
+  const VIBE_MIN_DURATION = 14;
+  const VIBE_MAX_DURATION = 22;
+  const VIBE_SETTLE_MS = 3500;
+  const VIBE_ZOOM_DELTAS = [0, 0, 0, 1, -1];
+
+  let vibeTimer = null;
+  let vibeGraph = null;
+  let vibeCurrentIdx = null;
+  let vibePrevIdx = null;
+
+  const vibeDistSq = (a, b) => {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  };
+
+  function buildVibeGraph() {
+    const targets = vibeTargets();
+    if (!targets.length) return null;
+    const nodes = targets.map((t, idx) => ({ ...t, _id: idx }));
+    const radiusSq = VIBE_NEAR_RADIUS * VIBE_NEAR_RADIUS;
+    const neighbors = nodes.map((node, idx) => {
+      const sorted = nodes
+        .map((other, j) => {
+          if (j === idx) return null;
+          return { idx: j, distSq: vibeDistSq(node, other) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distSq - b.distSq);
+      const close = sorted.filter(n => n.distSq <= radiusSq);
+      const shortlist = (close.length ? close : sorted).slice(0, VIBE_NEIGHBOR_LIMIT);
+      return shortlist.map(n => n.idx);
+    });
+    return { nodes, neighbors };
+  }
+
+  function nearestVibeIndex(graph, latlng) {
+    if (!graph?.nodes?.length) return null;
+    const [gx, gy] = toGameXY(latlng);
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    graph.nodes.forEach((node, idx) => {
+      const dx = gx - node.x;
+      const dy = gy - node.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestDist) {
+        bestDist = d2;
+        bestIdx = idx;
       }
-    },
-    {
-      name: 'zoomIn',
-      run: ({ latlng, duration, targetZoom, currentZoom }) => {
-        const zoom = Math.max(currentZoom + 1, targetZoom);
-        map.flyTo(latlng, clamp(zoom, map.getMinZoom(), map.getMaxZoom()), { duration, easeLinearity: 0.35 });
-      }
-    },
-    {
-      name: 'zoomOut',
-      run: ({ latlng, duration, targetZoom, currentZoom }) => {
-        const zoom = Math.min(currentZoom - 1, targetZoom);
-        map.flyTo(latlng, clamp(zoom, map.getMinZoom(), map.getMaxZoom()), { duration, easeLinearity: 0.35 });
-      }
-    },
-    {
-      name: 'portalHop',
-      run: ({ latlng, duration, targetZoom }) =>
-        map.flyTo(latlng, targetZoom, { duration: Math.max(0.6, duration * 0.5), easeLinearity: 0.2 })
-    }
-  ];
+    });
+    return bestIdx;
+  }
+
+  function nextVibeIndex(graph, currentIdx, prevIdx) {
+    if (!graph?.nodes?.length) return null;
+    const neighbors = graph.neighbors[currentIdx] || [];
+    if (!neighbors.length) return currentIdx;
+    const pool = neighbors.filter(idx => idx !== prevIdx);
+    const options = pool.length ? pool : neighbors;
+    return randomArrayItem(options);
+  }
 
   function startVibeLoop() {
     stopVibeLoop();
+    if (!IMG_W || !IMG_H) return false;
+    vibeGraph = buildVibeGraph();
+    if (!vibeGraph || !vibeGraph.nodes.length) return false;
+
+    const startIdx = nearestVibeIndex(vibeGraph, map.getCenter());
+    vibeCurrentIdx = Number.isFinite(startIdx) ? startIdx : 0;
+    vibePrevIdx = null;
+
     const hop = () => {
-      const targets = vibeTargets();
-      if (!targets.length) return;
-      const next = randomArrayItem(targets);
-      const latlng = toLL(next.x, next.y);
-      const transition = randomArrayItem(VIBE_TRANSITIONS);
-      const duration = Math.random() * 19 + 1; // 1-20 seconds
-      const zoomOptions = [-2, -1, 0, 1, 2];
+      if (!vibeGraph || !vibeGraph.nodes.length) return;
+      const nextIdx = nextVibeIndex(vibeGraph, vibeCurrentIdx, vibePrevIdx);
+      if (!Number.isFinite(nextIdx)) return;
+
+      const target = vibeGraph.nodes[nextIdx];
+      const latlng = toLL(target.x, target.y);
+      const zoomDelta = randomArrayItem(VIBE_ZOOM_DELTAS) || 0;
       const currentZoom = map.getZoom();
-      const delta = randomArrayItem(zoomOptions);
-      const targetZoom = clamp(currentZoom + delta, map.getMinZoom(), map.getMaxZoom());
-      transition.run({ latlng, duration, targetZoom, currentZoom });
+      const targetZoom = clamp(currentZoom + zoomDelta, map.getMinZoom(), map.getMaxZoom());
+      const duration = randomInRange(VIBE_MIN_DURATION, VIBE_MAX_DURATION);
+
+      map.flyTo(latlng, targetZoom, { duration, easeLinearity: 0.12 });
+
+      vibePrevIdx = vibeCurrentIdx;
+      vibeCurrentIdx = nextIdx;
+
       let synced = false;
       const sync = () => {
         if (synced) return;
@@ -237,9 +285,11 @@
       };
       map.once('moveend', sync);
       map.once('zoomend', sync);
-      vibeTimer = setTimeout(hop, duration * 1000 + 5000);
+      vibeTimer = setTimeout(hop, duration * 1000 + VIBE_SETTLE_MS);
     };
+
     hop();
+    return true;
   }
 
   function stopVibeLoop() {
@@ -247,6 +297,9 @@
       clearTimeout(vibeTimer);
       vibeTimer = null;
     }
+    vibeGraph = null;
+    vibeCurrentIdx = null;
+    vibePrevIdx = null;
   }
 
   // -------- Monsters (chunk labels) via encounters.json only --------
@@ -258,7 +311,6 @@
   let monsterFilterMax = null;
   let monsterFilterExclusive = false;
   let currentSearchRegex = null;
-  let vibeTimer = null;
 
   function namesForChunk(cx, cy) {
     if (!encountersIndex) return [];
@@ -1105,7 +1157,8 @@
       stopVibeLoop();
     } else {
       btnVibeOut.classList.add('active');
-      startVibeLoop();
+      const started = startVibeLoop();
+      if (!started) btnVibeOut.classList.remove('active');
     }
   });
 

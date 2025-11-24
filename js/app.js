@@ -21,6 +21,7 @@
   const MONSTER_FILTER_HINT_DEFAULT = 'Showing all levels. Set min/max to filter.';
   const MONSTER_FILTER_HINT_UNAVAILABLE = 'Monster level data unavailable.';
   const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode.';
+  const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6; // ensure labels stay readable when auto-zooming for search
 
   // Chunk constants
   const CHUNK_SIZE = 16;          // pixels per chunk
@@ -1100,7 +1101,7 @@
     const maxZ = Number.isFinite(map.getMaxZoom()) ? map.getMaxZoom() : map.getZoom();
     for (let z = minZ; z <= maxZ; z++) {
       const [cw, ch] = chunkScreenSizeAtZoom(z);
-      if (cw >= MIN_CHUNK_SCREEN_PX && ch >= MIN_CHUNK_SCREEN_PX) return z; // most zoomed-out that still shows labels
+      if (cw >= SEARCH_LABEL_MIN_PX && ch >= SEARCH_LABEL_MIN_PX) return z; // most zoomed-out that still keeps names visible
     }
     return maxZ;
   }

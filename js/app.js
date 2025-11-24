@@ -601,9 +601,9 @@
     const base = Math.max(MIN_CHUNK_SCREEN_PX, SEARCH_LABEL_MIN_PX);
     const clean = (term || '').trim();
     if (!clean) return base;
-    // Rough width estimate: scale with length, but cap to avoid over-zooming.
-    const estimated = base + Math.min(60, clean.length * 6);
-    return Math.max(base, estimated);
+    // Rough width estimate: gently scale with length, small cap to avoid over-zooming.
+    const extra = Math.min(20, Math.max(0, (clean.length - 5) * 2));
+    return base + extra;
   }
 
   function ensureMonstersZoom() {

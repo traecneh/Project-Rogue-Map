@@ -21,11 +21,11 @@
   const MONSTER_FILTER_HINT_DEFAULT = 'Showing all levels. Set min/max to filter.';
   const MONSTER_FILTER_HINT_UNAVAILABLE = 'Monster level data unavailable.';
   const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode.';
-  const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6; // ensure labels stay readable when auto-zooming for search
 
   // Chunk constants
   const CHUNK_SIZE = 16;          // pixels per chunk
   const MIN_CHUNK_SCREEN_PX = 26; // minimum on-screen chunk size to draw label stacks
+  const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6; // ensure labels stay readable when auto-zooming for search
 
   // -------- Map & panes --------
   const map = L.map('map', {

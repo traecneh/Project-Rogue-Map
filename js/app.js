@@ -597,6 +597,15 @@
     return [Math.abs(p1.x - p0.x), Math.abs(p1.y - p0.y)];
   }
 
+  function requiredChunkPxForSearchTerm(term) {
+    const base = Math.max(MIN_CHUNK_SCREEN_PX, SEARCH_LABEL_MIN_PX);
+    const clean = (term || '').trim();
+    if (!clean) return base;
+    // Rough width estimate: scale with length, but cap to avoid over-zooming.
+    const estimated = base + Math.min(60, clean.length * 6);
+    return Math.max(base, estimated);
+  }
+
   function ensureMonstersZoom() {
     if (!IMG_W || !IMG_H) return false;
     if (currentSearchRegex) return false; // search mode already forces labels visible at any zoom
@@ -1099,9 +1108,10 @@
   function bestSearchLabelZoom() {
     const minZ = Number.isFinite(map.getMinZoom()) ? map.getMinZoom() : map.getZoom();
     const maxZ = Number.isFinite(map.getMaxZoom()) ? map.getMaxZoom() : map.getZoom();
+    const neededPx = requiredChunkPxForSearchTerm(searchInput?.value || '');
     for (let z = minZ; z <= maxZ; z++) {
       const [cw, ch] = chunkScreenSizeAtZoom(z);
-      if (cw >= SEARCH_LABEL_MIN_PX && ch >= SEARCH_LABEL_MIN_PX) return z; // most zoomed-out that still keeps names visible
+      if (cw >= neededPx && ch >= neededPx) return z; // most zoomed-out that still keeps names visible
     }
     return maxZ;
   }

@@ -590,6 +590,12 @@
     return [Math.abs(p1.x - p0.x), Math.abs(p1.y - p0.y)];
   }
 
+  function chunkScreenSizeAtZoom(z) {
+    const p0 = map.project(toLL(0, 0), z);
+    const p1 = map.project(toLL(CHUNK_SIZE, CHUNK_SIZE), z);
+    return [Math.abs(p1.x - p0.x), Math.abs(p1.y - p0.y)];
+  }
+
   function ensureMonstersZoom() {
     if (!IMG_W || !IMG_H) return false;
     if (currentSearchRegex) return false; // search mode already forces labels visible at any zoom
@@ -990,10 +996,13 @@
   });
 
   // -------- Search (affects towns/portal labels + chunk labels) --------
-  function runSearch() {
+  function runSearch(exact = false) {
     const q = (searchInput?.value || '').trim();
     persistSearchToUrl(q);
-    currentSearchRegex = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    currentSearchRegex = q
+      ? new RegExp(exact ? `^${escaped}$` : escaped, 'i')
+      : null;
 
     const markerGroups = [towns, portalsLblFG, poisFG];
 
@@ -1022,13 +1031,13 @@
     refreshChunkLayer();
     rerunCollision();
   }
-  const applySearch = debounce(runSearch, 120);
+  const applySearch = debounce(() => runSearch(false), 120);
   searchInput?.addEventListener('input', applySearch);
   const initialSearchTerm = readSearchFromUrl();
   const startedWithSearch = !!(initialSearchTerm && initialSearchTerm.trim());
   if (initialSearchTerm && searchInput) {
     searchInput.value = initialSearchTerm;
-    runSearch(); // immediate for deep links
+    runSearch(true); // immediate for deep links (exact match)
   }
   function ensureMonstersLayerOn(requestRefresh = false) {
     const wasOff = !isOn(pillMonsters);
@@ -1086,15 +1095,22 @@
     return { cx: best.wx / best.sum, cy: best.wy / best.sum };
   }
 
+  function bestSearchLabelZoom() {
+    const minZ = Number.isFinite(map.getMinZoom()) ? map.getMinZoom() : map.getZoom();
+    const maxZ = Number.isFinite(map.getMaxZoom()) ? map.getMaxZoom() : map.getZoom();
+    for (let z = minZ; z <= maxZ; z++) {
+      const [cw, ch] = chunkScreenSizeAtZoom(z);
+      if (cw >= MIN_CHUNK_SCREEN_PX && ch >= MIN_CHUNK_SCREEN_PX) return z; // most zoomed-out that still shows labels
+    }
+    return maxZ;
+  }
+
   function focusOnSearchMatches() {
     const center = bestSearchClusterCenter();
     if (!center) return false;
     const cxCenter = (center.cx + 0.5) * CHUNK_SIZE;
     const cyCenter = (center.cy + 0.5) * CHUNK_SIZE;
-    const maxZoom = map.getMaxZoom();
-    const targetZoom = Number.isFinite(maxZoom)
-      ? Math.min(maxZoom, Math.max(map.getZoom(), maxZoom - 1))
-      : map.getZoom();
+    const targetZoom = bestSearchLabelZoom();
     map.flyTo(toLL(cxCenter, cyCenter), targetZoom, { animate: true, duration: 0.8 });
     return true;
   }
@@ -1199,7 +1215,7 @@
       setLayerVisible(portalLinesFG, true);
       setLayerVisible(cavesFG, true);
       const hasActiveSearch = !!(searchInput?.value && searchInput.value.trim());
-      if (hasActiveSearch) runSearch(); // apply search to freshly-added labels
+      if (hasActiveSearch) runSearch(startedWithSearch); // apply search to freshly-added labels
 
       let refreshedViaSearch = false;
       if (startedWithSearch && hasActiveSearch) {

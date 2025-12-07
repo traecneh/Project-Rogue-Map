@@ -104,6 +104,7 @@
   const pillPois     = $('#pillPois');
   const pillCrim     = $('#pillCrim');
   const searchInput  = $('#search');
+  const searchSuggestions = $('#searchSuggestions');
   const monsterLevelMinSelect = $('#monsterLevelMin');
   const monsterLevelMaxSelect = $('#monsterLevelMax');
   const monsterLevelExclusiveBtn = $('#monsterLevelExclusive');
@@ -114,6 +115,8 @@
   const codexLogoImg = $('#codexLogo');
   const SEARCH_PARAM_KEYS = ['search', 'q'];
   const SEARCH_CLUSTER_RADIUS = 1; // how many chunks around the center to score
+  const SEARCH_SUGGESTION_LIMIT = 12;
+  const SEARCH_TYPE_ORDER = { monster: 0, town: 1, poi: 2 };
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
@@ -335,6 +338,7 @@
   let monsterFilterMax = null;
   let monsterFilterExclusive = false;
   let currentSearchRegex = null;
+  let searchItems = [];           // [{ name, normalized, level, type, x?, y? }]
 
   function namesForChunk(cx, cy) {
     if (!encountersIndex) return [];
@@ -363,6 +367,45 @@
     if (!monsterLevels) return null;
     const lvl = monsterLevels.get(normalizeMonsterName(name));
     return Number.isFinite(lvl) ? lvl : null;
+  }
+
+  function buildSearchIndex() {
+    const items = [];
+
+    const add = (payload) => {
+      if (!payload || typeof payload.name !== 'string') return;
+      const normalized = normalizeMonsterName(payload.name);
+      if (!normalized) return;
+      items.push({ ...payload, normalized });
+    };
+
+    // Monsters
+    const monsterSeen = new Set();
+    if (encountersIndex?.size) {
+      for (const arr of encountersIndex.values()) {
+        if (!Array.isArray(arr)) continue;
+        for (const raw of arr) {
+          if (typeof raw !== 'string') continue;
+          const norm = normalizeMonsterName(raw);
+          if (!norm || monsterSeen.has(norm)) continue;
+          monsterSeen.add(norm);
+          add({ name: raw, type: 'monster', level: monsterLevel(raw) });
+        }
+      }
+    }
+
+    const addLabeledPoints = (arr, type) => {
+      for (const it of arr || []) {
+        const { name, x, y } = it || {};
+        if (typeof name !== 'string' || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+        add({ name, x, y, type });
+      }
+    };
+
+    addLabeledPoints(Array.isArray(window.__townDataCache) ? window.__townDataCache : [], 'town');
+    addLabeledPoints(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [], 'poi');
+
+    searchItems = items.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   function monsterLevelFilterActive() {
@@ -1006,6 +1049,125 @@
   });
 
   // -------- Search (affects towns/portal labels + chunk labels) --------
+  function setSearchExpanded(expanded) {
+    if (searchInput) searchInput.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+
+  function hideSearchSuggestions() {
+    if (!searchSuggestions) return;
+    searchSuggestions.innerHTML = '';
+    searchSuggestions.classList.remove('open');
+    setSearchExpanded(false);
+  }
+
+  function findSearchSuggestions(term) {
+    const clean = (term || '').trim().toLowerCase();
+    if (!clean) return [];
+    const matches = [];
+    for (const entry of searchItems) {
+      const idx = entry.normalized.indexOf(clean);
+      if (idx === -1) continue;
+      matches.push({ entry, idx });
+    }
+    matches.sort((a, b) => {
+      if (a.idx !== b.idx) return a.idx - b.idx;
+      const ta = Number.isFinite(SEARCH_TYPE_ORDER[a.entry.type]) ? SEARCH_TYPE_ORDER[a.entry.type] : 99;
+      const tb = Number.isFinite(SEARCH_TYPE_ORDER[b.entry.type]) ? SEARCH_TYPE_ORDER[b.entry.type] : 99;
+      if (ta !== tb) return ta - tb;
+      return a.entry.name.localeCompare(b.entry.name);
+    });
+    return matches.slice(0, SEARCH_SUGGESTION_LIMIT).map(m => m.entry);
+  }
+
+  function renderSearchSuggestions(entries) {
+    if (!searchSuggestions) return;
+    searchSuggestions.innerHTML = '';
+    if (!entries.length) {
+      const div = document.createElement('div');
+      div.className = 'empty';
+      const hasData = searchItems.length > 0;
+      div.textContent = hasData ? 'No names match that search.' : 'Data not loaded yet.';
+      searchSuggestions.appendChild(div);
+      searchSuggestions.classList.add('open');
+      setSearchExpanded(true);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    entries.slice(0, SEARCH_SUGGESTION_LIMIT).forEach(entry => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'search-suggestion';
+      btn.dataset.name = entry.name;
+      const isMonster = entry.type === 'monster';
+      const lvl = isMonster && Number.isFinite(entry.level) ? `<span class="meta">Lv ${entry.level}</span>` : '';
+      const tag = !isMonster ? `<span class="meta">${entry.type === 'town' ? 'Town' : 'POI'}</span>` : '';
+      btn.innerHTML = `<span class="name">${escHtml(entry.name)}</span>${lvl || tag}`;
+      btn.addEventListener('click', () => commitSearch(entry, { focus: true }));
+      frag.appendChild(btn);
+    });
+    searchSuggestions.appendChild(frag);
+    searchSuggestions.classList.add('open');
+    setSearchExpanded(true);
+  }
+
+  function handleSearchInput() {
+    if (!searchInput) return;
+    const val = searchInput.value || '';
+    if (!val.trim()) {
+      hideSearchSuggestions();
+      if (currentSearchRegex) runSearch(false);
+      return;
+    }
+    renderSearchSuggestions(findSearchSuggestions(val));
+  }
+
+  function findSearchEntryByName(name) {
+    const norm = normalizeMonsterName(name);
+    if (!norm) return null;
+    return searchItems.find(it => it.normalized === norm) || null;
+  }
+
+  function ensureLabelLayerOn(type) {
+    if (type === 'town') {
+      if (!isOn(pillTowns)) { setPill(pillTowns, true); setLayerVisible(towns, true); }
+    } else if (type === 'poi') {
+      if (!isOn(pillPois)) { setPill(pillPois, true); setLayerVisible(poisFG, true); }
+    }
+  }
+
+  function focusOnEntry(entry) {
+    if (!entry) return focusOnSearchMatches();
+    if (entry.type === 'monster') return focusOnSearchMatches();
+    const { x, y } = entry;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return focusOnSearchMatches();
+    const minZoom = map.getMinZoom();
+    const desired = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
+    const maxZoom = map.getMaxZoom();
+    const targetZoom = Number.isFinite(maxZoom) ? Math.min(Math.max(map.getZoom(), desired), maxZoom) : Math.max(map.getZoom(), desired);
+    map.flyTo(toLL(x, y), targetZoom, { animate: true, duration: 0.8 });
+    return true;
+  }
+
+  function commitSearch(termOrEntry, opts = {}) {
+    const { focus = true, exact = true } = opts;
+    if (!searchInput) return;
+    const entry = typeof termOrEntry === 'string' ? findSearchEntryByName(termOrEntry) : termOrEntry;
+    const clean = typeof termOrEntry === 'string' ? (termOrEntry || '').trim() : (entry?.name || '').trim();
+    searchInput.value = clean;
+    hideSearchSuggestions();
+    if (!clean) {
+      runSearch(false);
+      return;
+    }
+    if (entry?.type === 'monster') {
+      ensureMonstersLayerOn(true);
+    } else {
+      ensureLabelLayerOn(entry?.type);
+    }
+    runSearch(exact);
+    if (focus) focusOnEntry(entry);
+  }
+
   function runSearch(exact = false) {
     const q = (searchInput?.value || '').trim();
     persistSearchToUrl(q);
@@ -1041,8 +1203,32 @@
     refreshChunkLayer();
     rerunCollision();
   }
-  const applySearch = debounce(() => runSearch(false), 120);
-  searchInput?.addEventListener('input', applySearch);
+
+  setSearchExpanded(false);
+  searchInput?.addEventListener('input', handleSearchInput);
+  searchInput?.addEventListener('focus', () => {
+    if ((searchInput.value || '').trim()) handleSearchInput();
+  });
+  searchInput?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const first = searchSuggestions?.querySelector('.search-suggestion');
+      const candidate = first?.dataset?.name || (searchInput.value || '').trim();
+      if (candidate) commitSearch(findSearchEntryByName(candidate) || candidate, { focus: true, exact: true });
+      else hideSearchSuggestions();
+      e.stopPropagation();
+    } else if (e.key === 'Escape') {
+      hideSearchSuggestions();
+      e.stopPropagation();
+    }
+  });
+  document.addEventListener('click', e => {
+    if (!searchSuggestions) return;
+    const wrap = searchSuggestions.parentElement;
+    if (wrap && wrap.contains(e.target)) return;
+    hideSearchSuggestions();
+  });
+
   const initialSearchTerm = readSearchFromUrl();
   const startedWithSearch = !!(initialSearchTerm && initialSearchTerm.trim());
   if (initialSearchTerm && searchInput) {
@@ -1213,6 +1399,10 @@
         monsterLevels = null;
       }
       updateMonsterLevelSelectOptions();
+      buildSearchIndex();
+      if (searchInput && searchInput.value.trim() && document.activeElement === searchInput) {
+        handleSearchInput();
+      }
 
       // Set initial pill states
       setPill(pillTowns, true);

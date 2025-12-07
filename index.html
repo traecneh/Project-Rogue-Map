@@ -35,7 +35,17 @@
 
       <section class="group">
         <label class="search-label" for="search">Search names</label>
-        <input id="search" type="search" placeholder="Type to filter (e.g., Balron)" autocomplete="off">
+        <div class="search-wrap">
+          <input
+            id="search"
+            type="search"
+            placeholder="Type to find a monster (e.g., Balron)"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="searchSuggestions"
+          >
+          <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Matching monsters"></div>
+        </div>
       </section>
 
       <section class="group">

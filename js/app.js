@@ -1553,7 +1553,7 @@
     for (const spawn of crimSpawnPoints) {
       const dx = x - spawn.x;
       const dy = y - spawn.y;
-      const dist = dx * dx + dy * dy;
+      const dist = Math.abs(dx) + Math.abs(dy);
       if (dist < bestDist) {
         bestDist = dist;
         best = spawn;

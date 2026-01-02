@@ -75,6 +75,7 @@
   const portalsLblFG  = L.layerGroup();            // OFF at load
   const portalLinesFG = L.featureGroup();          // OFF at load
   const routes        = L.featureGroup().addTo(map);
+  const respawnFG     = L.featureGroup().addTo(map);
   const chunkFG       = L.featureGroup();          // OFF at load (Monsters)
   const cavesFG       = L.featureGroup();          // OFF at load
   const crimFG        = L.featureGroup();          // OFF at load
@@ -110,6 +111,8 @@
   const monsterLevelExclusiveBtn = $('#monsterLevelExclusive');
   const monsterLevelFilterStatus = $('#monsterLevelFilterStatus');
   const btnVibeOut   = $('#btnVibeOut');
+  const btnCrimRespawn = $('#btnCrimRespawn');
+  const btnCrimRespawnClear = $('#btnCrimRespawnClear');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
@@ -846,12 +849,15 @@
     }
   }
 
+  let crimSpawnPoints = [];
   function renderCrimSpawns(arr) {
     crimFG.clearLayers();
+    crimSpawnPoints = [];
     for (const item of arr || []) {
       if (!item || typeof item.name !== 'string') continue;
       const { x, y } = item;
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      crimSpawnPoints.push({ x, y, name: item.name });
       L.marker(toLL(x, y), {
         pane: 'crim',
         icon: ICONS.crim,
@@ -1518,6 +1524,92 @@
     map.on('click', handler);
   });
   btnEliteClear?.addEventListener('click', () => { if (eliteRing){ eliteFG.removeLayer(eliteRing); eliteRing = null; } });
+
+  // -------- Crim respawn line --------
+  const UNDERGROUND_X_OFFSET = 4096;
+  const RESPAWN_FIT_PADDING = 40;
+  let respawnActive = false;
+  let respawnLine = null;
+
+  function setRespawnActive(on) {
+    respawnActive = !!on;
+    btnCrimRespawn?.classList.toggle('active', respawnActive);
+  }
+
+  function clearRespawnLine() {
+    if (!respawnLine) return;
+    respawnFG.removeLayer(respawnLine);
+    respawnLine = null;
+  }
+
+  function normalizeRespawnX(x) {
+    return x >= UNDERGROUND_X_OFFSET ? x - UNDERGROUND_X_OFFSET : x;
+  }
+
+  function nearestCrimSpawn(x, y) {
+    if (!crimSpawnPoints.length) return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const spawn of crimSpawnPoints) {
+      const dx = x - spawn.x;
+      const dy = y - spawn.y;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = spawn;
+      }
+    }
+    return best;
+  }
+
+  function ensureRespawnLineInView(start, end) {
+    const bounds = L.latLngBounds(start, end);
+    if (map.getBounds().contains(bounds)) return;
+    const pad = RESPAWN_FIT_PADDING;
+    let leftPad = pad;
+    const mapRect = map.getContainer().getBoundingClientRect();
+    if (panel && mapRect) {
+      const panelRect = panel.getBoundingClientRect();
+      if (panelRect.width > 0) {
+        const panelInset = Math.max(0, panelRect.right - mapRect.left);
+        leftPad = Math.max(leftPad, panelInset + pad);
+      }
+    }
+    const currentZoom = map.getZoom();
+    map.fitBounds(bounds, {
+      paddingTopLeft: [leftPad, pad],
+      paddingBottomRight: [pad, pad],
+      maxZoom: currentZoom,
+      animate: true,
+      duration: 0.35
+    });
+  }
+
+  function drawRespawnLine(latlng) {
+    if (!IMG_W || !IMG_H) return;
+    const [gx, gy] = toGameXY(latlng);
+    const nearest = nearestCrimSpawn(normalizeRespawnX(gx), gy);
+    if (!nearest) return;
+    const start = toLL(gx, gy);
+    const end = toLL(nearest.x, nearest.y);
+    ensureRespawnLineInView(start, end);
+    const color = getCrimColor();
+    const points = [start, end];
+    if (!respawnLine) {
+      respawnLine = L.polyline(points, { color, weight: 2, opacity: 0.9, pane: 'routes' }).addTo(respawnFG);
+    } else {
+      respawnLine.setLatLngs(points);
+      respawnLine.setStyle({ color });
+    }
+  }
+
+  btnCrimRespawn?.addEventListener('click', () => setRespawnActive(!respawnActive));
+  btnCrimRespawnClear?.addEventListener('click', clearRespawnLine);
+  map.on('click', e => {
+    if (!respawnActive) return;
+    if (measuring) return;
+    drawRespawnLine(e.latlng);
+  });
 
   // -------- Collision hider (towns + portal labels) --------
   function markerPriority(spanEl) {

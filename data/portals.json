@@ -14,6 +14,6 @@
   { "name": "Badlands", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 }, "dir":"one" },
   { "name": "Shadowhaven <-> Arena", "entry": { "x": 1416, "y": 1111 }, "exit": { "x": 5703, "y": 1176 } },
   { "name": "Crestshore Battlegrounds <-> Parian Battlegrounds", "entry": { "x": 2752, "y": 1147 }, "exit": { "x": 584, "y": 888 } },
-  { "name": "South of Desprail <-> West of Lopal", "entry": { "x": 1754, "y": 1033 }, "exit": { "x": 2919, "y": 2696 } }
-  { "name": "South of Lopal <-> Jail", "entry": { "x": 2913, "y": 2855 }, "exit": { "x": 2469, "y": 3176 } }
+  { "name": "South of Desprail <-> West of Lopal", "entry": { "x": 1754, "y": 1033 }, "exit": { "x": 2919, "y": 2696 } },
+  { "name": "South of Lopal <-> Jail", "entry": { "x": 2913, "y": 2855 }, "exit": { "x": 3469, "y": 3176 } }
 ]

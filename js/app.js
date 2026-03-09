@@ -274,8 +274,10 @@
     if (Number.isFinite(floorMinZoom)) {
       map.setMinZoom(floorMinZoom);
     }
+    const bounds = floorViewportBounds(currentFloor);
+    map.setMaxBounds(bounds);
+    map.panInsideBounds(bounds, { animate: false });
     renderFloorMask();
-    map.setMaxBounds(floorViewportBounds(currentFloor));
   }
 
   function forceFloorRefresh() {
@@ -366,6 +368,7 @@
     if (animate) {
       map.once('moveend', () => {
         map.setMaxBounds(nextViewportBounds);
+        map.panInsideBounds(nextViewportBounds, { animate: false });
         renderFloorMask();
         forceFloorRefresh();
       });
@@ -373,6 +376,7 @@
     } else {
       map.setView(latlng, targetZoom, { animate: false });
       map.setMaxBounds(nextViewportBounds);
+      map.panInsideBounds(nextViewportBounds, { animate: false });
       renderFloorMask();
       forceFloorRefresh();
     }

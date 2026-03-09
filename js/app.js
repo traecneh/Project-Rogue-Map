@@ -16,8 +16,15 @@
   };
 
   const INVERT_Y = true;
-  const ZOOM_OUT_EXTRA = 3;
+  const ZOOM_OUT_EXTRA = 2;
   const MATCH_ZINDEX_OFFSET = 10000;
+  const FLOOR_WIDTH = 4096;
+  const FLOOR_VIEW_PADDING_X = 288;
+  const FLOOR_VIEW_PADDING_Y = 224;
+  const FLOORS = {
+    overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: FLOOR_WIDTH, offset: 0 },
+    underground: { key: 'underground', label: 'Underground', minX: FLOOR_WIDTH, maxX: FLOOR_WIDTH * 2, offset: FLOOR_WIDTH }
+  };
   const MONSTER_FILTER_HINT_DEFAULT = 'Showing all levels. Set min/max to filter.';
   const MONSTER_FILTER_HINT_UNAVAILABLE = 'Monster level data unavailable.';
   const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode.';
@@ -36,7 +43,8 @@
     zoomAnimation: false,
     fadeAnimation: false,
     inertia: true,
-    preferCanvas: true
+    preferCanvas: true,
+    maxBoundsViscosity: 1
   });
 
   map.createPane('routes').style.zIndex         = 640;
@@ -48,6 +56,8 @@
   map.createPane('portalLines').style.zIndex    = 653;  // interactive transport nodes (portals/caves)
   map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('elite').style.zIndex          = 670;
+  map.createPane('floor-mask').style.zIndex     = 900;
+  map.getPane('floor-mask').style.pointerEvents = 'none';
 
   const ICONS = {
     portal: L.icon({
@@ -82,6 +92,7 @@
   const poisFG        = L.layerGroup().addTo(map); // ON by default
   const zonesFG       = L.featureGroup();          // OFF at load
   const eliteFG       = L.featureGroup().addTo(map);
+  const floorMaskFG   = L.featureGroup().addTo(map);
 
   // -------- UI hooks --------
   const $ = sel => document.querySelector(sel);
@@ -104,6 +115,8 @@
   const pillZones    = $('#pillZones');
   const pillPois     = $('#pillPois');
   const pillCrim     = $('#pillCrim');
+  const btnFloorOverworld = $('#btnFloorOverworld');
+  const btnFloorUnderground = $('#btnFloorUnderground');
   const searchInput  = $('#search');
   const searchSuggestions = $('#searchSuggestions');
   const monsterLevelMinSelect = $('#monsterLevelMin');
@@ -171,6 +184,12 @@
   setPanelCollapsed(false);
 
   let IMG_W = 0, IMG_H = 0;
+  let floorMinZoom = null;
+  let currentFloor = 'overworld';
+  let pendingDragRefresh = false;
+  let isDraggingMap = false;
+  let floorRefreshToken = 0;
+  let floorRefreshTimer = null;
   // lat = y, lng = x for CRS.Simple; we’ll set the final mapping after image load (needs IMG_H for Y flip)
   let toLL = (x, y) => L.latLng(y, x);
 
@@ -179,6 +198,224 @@
     const yTop = clamp(Math.round(ll.lat), 0, IMG_H);
     return [x, INVERT_Y ? (IMG_H - yTop) : yTop];
   }
+
+  function floorConfig(floor) {
+    return FLOORS[floor] || FLOORS.overworld;
+  }
+
+  function floorForX(x) {
+    return Number.isFinite(x) && x >= FLOOR_WIDTH ? 'underground' : 'overworld';
+  }
+
+  function floorLabelForX(x) {
+    return floorForX(x) === 'underground' ? 'UG' : 'OW';
+  }
+
+  function floorLocalX(x, floor = floorForX(x)) {
+    return x - floorConfig(floor).offset;
+  }
+
+  function globalFloorX(localX, floor) {
+    return floorConfig(floor).offset + localX;
+  }
+
+  function clampFloorX(x, floor) {
+    const cfg = floorConfig(floor);
+    return clamp(x, cfg.minX, cfg.maxX - 1);
+  }
+
+  function floorBounds(floor) {
+    const cfg = floorConfig(floor);
+    return L.latLngBounds(toLL(cfg.minX, 0), toLL(cfg.maxX, IMG_H));
+  }
+
+  function floorViewportBounds(floor) {
+    const cfg = floorConfig(floor);
+    return L.latLngBounds(
+      toLL(cfg.minX - FLOOR_VIEW_PADDING_X, -FLOOR_VIEW_PADDING_Y),
+      toLL(cfg.maxX + FLOOR_VIEW_PADDING_X, IMG_H + FLOOR_VIEW_PADDING_Y)
+    );
+  }
+
+  function renderFloorMask() {
+    floorMaskFG.clearLayers();
+    if (!IMG_W || !IMG_H) return;
+    const hiddenBounds = currentFloor === 'overworld'
+      ? L.latLngBounds(toLL(FLOOR_WIDTH, 0), toLL(IMG_W, IMG_H))
+      : L.latLngBounds(toLL(0, 0), toLL(FLOOR_WIDTH, IMG_H));
+    L.rectangle(hiddenBounds, {
+      pane: 'floor-mask',
+      stroke: false,
+      fill: true,
+      fillColor: '#000',
+      fillOpacity: 1,
+      interactive: false,
+      bubblingMouseEvents: false
+    }).addTo(floorMaskFG);
+  }
+
+  function setFloorButtonState(btn, active) {
+    if (!btn) return;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
+
+  function syncFloorButtons() {
+    setFloorButtonState(btnFloorOverworld, currentFloor === 'overworld');
+    setFloorButtonState(btnFloorUnderground, currentFloor === 'underground');
+  }
+
+  function currentFloorBounds() {
+    return floorBounds(currentFloor);
+  }
+
+  function refreshFloorViewport() {
+    if (!IMG_W || !IMG_H) return;
+    if (Number.isFinite(floorMinZoom)) {
+      map.setMinZoom(floorMinZoom);
+    }
+    renderFloorMask();
+    map.setMaxBounds(floorViewportBounds(currentFloor));
+  }
+
+  function forceFloorRefresh() {
+    const token = ++floorRefreshToken;
+    if (floorRefreshTimer) {
+      clearTimeout(floorRefreshTimer);
+      floorRefreshTimer = null;
+    }
+    const run = () => {
+      if (token !== floorRefreshToken || isDraggingMap) return;
+      refreshChunkLayer();
+      rerunCollision();
+    };
+    if (isDraggingMap) return;
+    floorRefreshTimer = setTimeout(() => {
+      floorRefreshTimer = null;
+      if (token !== floorRefreshToken || isDraggingMap) return;
+      const currentZoom = map.getZoom();
+      const maxZoom = map.getMaxZoom();
+      const minZoom = map.getMinZoom();
+      const bounceZoom = currentZoom < maxZoom ? currentZoom + 1
+        : (currentZoom > minZoom ? currentZoom - 1 : currentZoom);
+
+      if (bounceZoom === currentZoom) {
+        requestAnimationFrame(() => {
+          if (token !== floorRefreshToken || isDraggingMap) return;
+          run();
+          requestAnimationFrame(() => {
+            if (token !== floorRefreshToken || isDraggingMap) return;
+            run();
+          });
+        });
+        return;
+      }
+
+      map.setZoom(bounceZoom, { animate: false });
+      requestAnimationFrame(() => {
+        map.setZoom(currentZoom, { animate: false });
+        requestAnimationFrame(() => {
+          if (token !== floorRefreshToken || isDraggingMap) return;
+          run();
+        });
+      });
+    }, 90);
+  }
+
+  function switchFloor(nextFloor, opts = {}) {
+    const targetFloor = floorConfig(nextFloor).key;
+    const {
+      animate = true,
+      duration = 0.6,
+      preserveLocalPosition = true,
+      x = null,
+      y = null,
+      zoom = null
+    } = opts;
+
+    if (targetFloor === currentFloor && !Number.isFinite(x) && !Number.isFinite(y) && !Number.isFinite(zoom)) {
+      syncFloorButtons();
+      return;
+    }
+
+    currentFloor = targetFloor;
+    syncFloorButtons();
+
+    if (!IMG_W || !IMG_H) return;
+
+    const prevCenter = toGameXY(map.getCenter());
+    map.stop();
+
+    const localX = preserveLocalPosition
+      ? floorLocalX(prevCenter[0], floorForX(prevCenter[0]))
+      : FLOOR_WIDTH / 2;
+    const targetX = Number.isFinite(x)
+      ? clampFloorX(x, targetFloor)
+      : clampFloorX(globalFloorX(clamp(localX, 0, FLOOR_WIDTH - 1), targetFloor), targetFloor);
+    const targetY = clamp(Number.isFinite(y) ? y : prevCenter[1], 0, IMG_H);
+    const desiredZoom = Number.isFinite(zoom) ? zoom : map.getZoom();
+    const boundedZoom = clamp(desiredZoom, map.getMinZoom(), map.getMaxZoom());
+    const targetZoom = Number.isFinite(floorMinZoom) ? Math.max(boundedZoom, floorMinZoom) : boundedZoom;
+    const nextViewportBounds = floorViewportBounds(currentFloor);
+    if (Number.isFinite(floorMinZoom)) {
+      map.setMinZoom(floorMinZoom);
+    }
+    renderFloorMask();
+    map.options.maxBounds = null;
+
+    const latlng = toLL(targetX, targetY);
+    if (animate) {
+      map.once('moveend', () => {
+        map.setMaxBounds(nextViewportBounds);
+        forceFloorRefresh();
+      });
+      map.flyTo(latlng, targetZoom, { animate: true, duration });
+    } else {
+      map.setView(latlng, targetZoom, { animate: false });
+      map.setMaxBounds(nextViewportBounds);
+      forceFloorRefresh();
+    }
+
+    if (btnVibeOut?.classList.contains('active')) {
+      const restarted = startVibeLoop();
+      if (!restarted) btnVibeOut.classList.remove('active');
+    }
+    refreshChunkLayer();
+    rerunCollision();
+  }
+
+  function focusWorldPoint(x, y, opts = {}) {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !IMG_W || !IMG_H) return false;
+    const {
+      animate = true,
+      duration = 0.8,
+      zoom = null,
+      zoomBoost = 2
+    } = opts;
+    const targetFloor = floorForX(x);
+    const minZoom = map.getMinZoom();
+    const defaultZoom = Number.isFinite(minZoom) ? minZoom + zoomBoost : map.getZoom();
+    const desiredZoom = Number.isFinite(zoom) ? zoom : Math.max(map.getZoom(), defaultZoom);
+    const maxZoom = map.getMaxZoom();
+    const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
+
+    if (currentFloor !== targetFloor) {
+      switchFloor(targetFloor, { x, y, zoom: targetZoom, animate, duration, preserveLocalPosition: false });
+      return true;
+    }
+
+    const latlng = toLL(x, y);
+    if (animate) {
+      map.flyTo(latlng, targetZoom, { animate: true, duration });
+    } else {
+      map.setView(latlng, targetZoom, { animate: false });
+    }
+    return true;
+  }
+
+  btnFloorOverworld?.addEventListener('click', () => switchFloor('overworld', { animate: false }));
+  btnFloorUnderground?.addEventListener('click', () => switchFloor('underground', { animate: false }));
+  syncFloorButtons();
 
   const paneByKind = {
     town: 'labels-towns',
@@ -211,7 +448,7 @@
     const combined = [
       ...(Array.isArray(window.__townDataCache) ? window.__townDataCache : []),
       ...(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [])
-    ].filter(it => Number.isFinite(it?.x) && Number.isFinite(it?.y));
+    ].filter(it => Number.isFinite(it?.x) && Number.isFinite(it?.y) && floorForX(it.x) === currentFloor);
     return combined;
   }
 
@@ -742,7 +979,7 @@
   // -------- Caves (paired markers with teleport helper) --------
   function renderCaves(cavesArr) {
     cavesFG.clearLayers();
-    const makeMarker = (latLng, partnerLatLng) => {
+    const makeMarker = (latLng, partnerPoint) => {
       const marker = L.marker(latLng, {
         pane: 'portalLines',
         icon: ICONS.cave,
@@ -751,13 +988,13 @@
         bubblingMouseEvents: false
       }).addTo(cavesFG);
       marker.on('click', () => {
-        if (!partnerLatLng) return;
+        if (!partnerPoint) return;
         const minZoom = map.getMinZoom();
         const baseZoom = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
         const desiredZoom = Math.max(map.getZoom(), baseZoom);
         const maxZoom = map.getMaxZoom();
         const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
-        map.flyTo(partnerLatLng, targetZoom, { animate: true, duration: 0.7 });
+        focusWorldPoint(partnerPoint.x + 0.5, partnerPoint.y + 0.5, { zoom: targetZoom, duration: 0.7 });
       });
     };
 
@@ -765,8 +1002,8 @@
       if (!c || !c.entry || !c.exit) continue;
       const entryLL = toLL(c.entry.x + 0.5, c.entry.y + 0.5);
       const exitLL  = toLL(c.exit.x  + 0.5, c.exit.y  + 0.5);
-      makeMarker(entryLL, exitLL);
-      makeMarker(exitLL, entryLL);
+      makeMarker(entryLL, c.exit);
+      makeMarker(exitLL, c.entry);
     }
   }
 
@@ -786,8 +1023,8 @@
   function renderPortalMarkers(arr) {
     portalLinesFG.clearLayers();
 
-    const makePortal = (latLng, partnerLatLng) => {
-      const interactive = !!partnerLatLng;
+    const makePortal = (latLng, partnerPoint) => {
+      const interactive = !!partnerPoint;
       const marker = L.marker(latLng, {
         pane: 'portalLines',
         icon: ICONS.portal,
@@ -802,7 +1039,7 @@
         const desiredZoom = Math.max(map.getZoom(), baseZoom + 1);
         const maxZoom = map.getMaxZoom();
         const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
-        map.flyTo(partnerLatLng, targetZoom, { animate: true, duration: 0.7 });
+        focusWorldPoint(partnerPoint.x + 0.5, partnerPoint.y + 0.5, { zoom: targetZoom, duration: 0.7 });
       });
     };
 
@@ -812,8 +1049,8 @@
       const [x1, y1, x2, y2] = ep;
       const entryLL = toLL(x1 + 0.5, y1 + 0.5);
       const exitLL  = toLL(x2 + 0.5, y2 + 0.5);
-      makePortal(entryLL, exitLL);
-      if (p?.dir !== 'one') makePortal(exitLL, entryLL);
+      makePortal(entryLL, { x: x2, y: y2 });
+      if (p?.dir !== 'one') makePortal(exitLL, { x: x1, y: y1 });
       else makePortal(exitLL, null);
     }
   }
@@ -1080,6 +1317,9 @@
       const ta = Number.isFinite(SEARCH_TYPE_ORDER[a.entry.type]) ? SEARCH_TYPE_ORDER[a.entry.type] : 99;
       const tb = Number.isFinite(SEARCH_TYPE_ORDER[b.entry.type]) ? SEARCH_TYPE_ORDER[b.entry.type] : 99;
       if (ta !== tb) return ta - tb;
+      const fa = Number.isFinite(a.entry.x) ? (floorForX(a.entry.x) === currentFloor ? 0 : 1) : 0;
+      const fb = Number.isFinite(b.entry.x) ? (floorForX(b.entry.x) === currentFloor ? 0 : 1) : 0;
+      if (fa !== fb) return fa - fb;
       return a.entry.name.localeCompare(b.entry.name);
     });
     return matches.slice(0, SEARCH_SUGGESTION_LIMIT).map(m => m.entry);
@@ -1106,7 +1346,8 @@
       btn.dataset.name = entry.name;
       const isMonster = entry.type === 'monster';
       const lvl = isMonster && Number.isFinite(entry.level) ? `<span class="meta">Lv ${entry.level}</span>` : '';
-      const tag = !isMonster ? `<span class="meta">${entry.type === 'town' ? 'Town' : 'POI'}</span>` : '';
+      const floorMeta = !isMonster && Number.isFinite(entry.x) ? ` · ${floorLabelForX(entry.x)}` : '';
+      const tag = !isMonster ? `<span class="meta">${entry.type === 'town' ? 'Town' : 'POI'}${floorMeta}</span>` : '';
       btn.innerHTML = `<span class="name">${escHtml(entry.name)}</span>${lvl || tag}`;
       btn.addEventListener('click', () => commitSearch(entry, { focus: true }));
       frag.appendChild(btn);
@@ -1150,8 +1391,7 @@
     const desired = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
     const maxZoom = map.getMaxZoom();
     const targetZoom = Number.isFinite(maxZoom) ? Math.min(Math.max(map.getZoom(), desired), maxZoom) : Math.max(map.getZoom(), desired);
-    map.flyTo(toLL(x, y), targetZoom, { animate: true, duration: 0.8 });
-    return true;
+    return focusWorldPoint(x, y, { zoom: targetZoom, duration: 0.8 });
   }
 
   function commitSearch(termOrEntry, opts = {}) {
@@ -1314,8 +1554,7 @@
     const cxCenter = (center.cx + 0.5) * CHUNK_SIZE;
     const cyCenter = (center.cy + 0.5) * CHUNK_SIZE;
     const targetZoom = bestSearchLabelZoom();
-    map.flyTo(toLL(cxCenter, cyCenter), targetZoom, { animate: true, duration: 0.8 });
-    return true;
+    return focusWorldPoint(cxCenter, cyCenter, { zoom: targetZoom, duration: 0.8, zoomBoost: 0 });
   }
 
   monsterLevelMinSelect?.addEventListener('change', () => handleMonsterLevelSelectChange('min'));
@@ -1332,15 +1571,18 @@
 
     const bounds = [[0, 0], [IMG_H, IMG_W]];
     const overlay = L.imageOverlay(IMG_PATH, bounds, { className: 'map-image', interactive: false }).addTo(map);
-    map.fitBounds(bounds, { animate: false });
-    const minZ = map.getBoundsZoom(bounds, true);
-    map.setMinZoom(minZ - ZOOM_OUT_EXTRA);
-    map.setMaxZoom(minZ + 6);
-    map.setZoom(minZ);
 
     // final mapping (apply Y flip if requested)
     toLL = INVERT_Y ? (x, y) => L.latLng(IMG_H - y, x)
                     : (x, y) => L.latLng(y, x);
+
+    const initialFloorBounds = currentFloorBounds();
+    floorMinZoom = map.getBoundsZoom(initialFloorBounds, true) - ZOOM_OUT_EXTRA;
+    map.setMinZoom(floorMinZoom);
+    map.setMaxZoom(floorMinZoom + 6);
+    refreshFloorViewport();
+    map.fitBounds(initialFloorBounds, { animate: false });
+    map.setZoom(floorMinZoom);
 
     overlay.once('load', () => {
       const el = overlay.getElement();
@@ -1526,7 +1768,6 @@
   btnEliteClear?.addEventListener('click', () => { if (eliteRing){ eliteFG.removeLayer(eliteRing); eliteRing = null; } });
 
   // -------- Crim respawn line --------
-  const UNDERGROUND_X_OFFSET = 4096;
   const RESPAWN_FIT_PADDING = 40;
   let respawnActive = false;
   let respawnLine = null;
@@ -1543,7 +1784,7 @@
   }
 
   function normalizeRespawnX(x) {
-    return x >= UNDERGROUND_X_OFFSET ? x - UNDERGROUND_X_OFFSET : x;
+    return x >= FLOOR_WIDTH ? x - FLOOR_WIDTH : x;
   }
 
   function nearestCrimSpawn(x, y) {
@@ -1588,9 +1829,14 @@
   function drawRespawnLine(latlng) {
     if (!IMG_W || !IMG_H) return;
     const [gx, gy] = toGameXY(latlng);
-    const nearest = nearestCrimSpawn(normalizeRespawnX(gx), gy);
+    const projectedX = normalizeRespawnX(gx);
+    const nearest = nearestCrimSpawn(projectedX, gy);
     if (!nearest) return;
-    const start = toLL(gx, gy);
+    const targetFloor = floorForX(projectedX);
+    if (currentFloor !== targetFloor) {
+      switchFloor(targetFloor, { x: projectedX, y: gy, zoom: map.getZoom(), animate: false, preserveLocalPosition: false });
+    }
+    const start = toLL(projectedX, gy);
     const end = toLL(nearest.x, nearest.y);
     ensureRespawnLineInView(start, end);
     const color = getCrimColor();
@@ -1631,6 +1877,17 @@
       if (!map.hasLayer(group)) return;
       group.eachLayer(m => {
         const el = m.getElement && m.getElement(); if (!el) return;
+        const latlng = m.getLatLng && m.getLatLng();
+        const markerFloor = Number.isFinite(latlng?.lng) ? floorForX(latlng.lng) : currentFloor;
+        if (markerFloor !== currentFloor) {
+          el.dataset.floorHidden = '1';
+          el.style.visibility = 'hidden';
+          return;
+        }
+        if (el.dataset.floorHidden === '1') {
+          delete el.dataset.floorHidden;
+          el.style.visibility = '';
+        }
         if (el.style.display === 'none'){ el.style.attach = ''; el.style.visibility = 'hidden'; return; }
         const span = el.querySelector('span.n');  if (!span) return;
 
@@ -1681,10 +1938,79 @@
 
     consider(towns);
     consider(portalsLblFG);
+    adjustFloorLabelOffsets();
+  }
+
+  function adjustFloorLabelOffsets() {
+    if (!IMG_W || !IMG_H) return;
+    const container = map.getContainer();
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const cfg = floorConfig(currentFloor);
+    const seamX = currentFloor === 'overworld'
+      ? map.latLngToContainerPoint(toLL(cfg.maxX, IMG_H / 2)).x
+      : map.latLngToContainerPoint(toLL(cfg.minX, IMG_H / 2)).x;
+    const padding = 10;
+
+    const adjustGroup = group => {
+      if (!map.hasLayer(group)) return;
+      group.eachLayer(layer => {
+        const el = layer.getElement && layer.getElement();
+        if (!el) return;
+        const inner = el.querySelector('.lbl-inner');
+        if (!inner) return;
+        const latlng = layer.getLatLng && layer.getLatLng();
+        const labelFloor = Number.isFinite(latlng?.lng) ? floorForX(latlng.lng) : currentFloor;
+        inner.style.setProperty('--floor-shift-x', '0px');
+        if (labelFloor !== currentFloor) {
+          el.dataset.floorHidden = '1';
+          el.style.visibility = 'hidden';
+          return;
+        }
+        if (el.dataset.floorHidden === '1') {
+          delete el.dataset.floorHidden;
+          el.style.visibility = '';
+        }
+        if (el.style.display === 'none') return;
+        if (el.style.visibility === 'hidden') return;
+        const rect = inner.getBoundingClientRect();
+        const left = rect.left - containerRect.left;
+        const right = rect.right - containerRect.left;
+        let shift = 0;
+        if (currentFloor === 'overworld' && right > seamX - padding) {
+          shift = seamX - padding - right;
+        } else if (currentFloor === 'underground' && left < seamX + padding) {
+          shift = seamX + padding - left;
+        }
+        if (shift) {
+          inner.style.setProperty('--floor-shift-x', `${Math.round(shift)}px`);
+        }
+      });
+    };
+
+    adjustGroup(towns);
+    adjustGroup(portalsLblFG);
+    adjustGroup(poisFG);
   }
 
   // -------- Map change hooks --------
+  map.on('dragstart', () => {
+    isDraggingMap = true;
+    pendingDragRefresh = true;
+    floorRefreshToken++;
+    if (floorRefreshTimer) {
+      clearTimeout(floorRefreshTimer);
+      floorRefreshTimer = null;
+    }
+  });
+  map.on('dragend', () => { isDraggingMap = false; });
   map.on('zoomend',  () => { refreshChunkLayerDebounced(); rerunCollision(); });
-  map.on('moveend',  () => { refreshChunkLayerDebounced(); rerunCollision(); });
+  map.on('moveend',  () => {
+    refreshChunkLayerDebounced();
+    rerunCollision();
+    if (!pendingDragRefresh || isDraggingMap) return;
+    pendingDragRefresh = false;
+    forceFloorRefresh();
+  });
 
 })();

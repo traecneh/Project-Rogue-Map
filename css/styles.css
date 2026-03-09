@@ -125,6 +125,30 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   color: var(--muted);
   font-size: 13px;
 }
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.seg-btn {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #1a2027;
+  background: #0f1318;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, color .15s ease;
+}
+.seg-btn:hover {
+  border-color: color-mix(in oklab, var(--accent) 55%, #1a2027 45%);
+}
+.seg-btn.active {
+  background: color-mix(in oklab, var(--accent) 18%, #0f1318 82%);
+  border-color: color-mix(in oklab, var(--accent) 65%, #1a2027 35%);
+  box-shadow: 0 0 0 3px rgba(76,201,240,0.15);
+  color: var(--fg);
+}
 .select-control {
   width: 100%;
   padding: 9px 12px;
@@ -271,7 +295,8 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   position: absolute;
   left: 0;
   top: 0;
-  transform: translate(-50%, -50%);
+  --floor-shift-x: 0px;
+  transform: translate(calc(-50% + var(--floor-shift-x)), -50%);
   display: inline-block;
 }
 /* Towns larger (2×) */

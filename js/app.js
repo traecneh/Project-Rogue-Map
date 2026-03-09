@@ -186,6 +186,7 @@
   let IMG_W = 0, IMG_H = 0;
   let floorMinZoom = null;
   let currentFloor = 'overworld';
+  const visitedFloors = new Set(['overworld']);
   let pendingDragRefresh = false;
   let isDraggingMap = false;
   let floorRefreshToken = 0;
@@ -358,13 +359,22 @@
     const boundedZoom = clamp(desiredZoom, map.getMinZoom(), map.getMaxZoom());
     const targetZoom = Number.isFinite(floorMinZoom) ? Math.max(boundedZoom, floorMinZoom) : boundedZoom;
     const nextViewportBounds = floorViewportBounds(currentFloor);
+    const firstVisit = !visitedFloors.has(targetFloor);
     if (Number.isFinite(floorMinZoom)) {
       map.setMinZoom(floorMinZoom);
     }
     map.options.maxBounds = null;
 
     const latlng = toLL(targetX, targetY);
-    if (animate) {
+    if (firstVisit) {
+      const initBounds = floorBounds(targetFloor);
+      map.fitBounds(initBounds, { animate: false });
+      map.setView(latlng, targetZoom, { animate: false });
+      map.setMaxBounds(nextViewportBounds);
+      renderFloorMask();
+      visitedFloors.add(targetFloor);
+      forceFloorRefresh();
+    } else if (animate) {
       map.once('moveend', () => {
         map.setMaxBounds(nextViewportBounds);
         renderFloorMask();
@@ -376,6 +386,10 @@
       map.setMaxBounds(nextViewportBounds);
       renderFloorMask();
       forceFloorRefresh();
+    }
+
+    if (!firstVisit) {
+      visitedFloors.add(targetFloor);
     }
 
     if (btnVibeOut?.classList.contains('active')) {

@@ -369,7 +369,6 @@
     if (firstVisit) {
       const initBounds = floorBounds(targetFloor);
       map.fitBounds(initBounds, { animate: false });
-      map.setView(latlng, targetZoom, { animate: false });
       map.setMaxBounds(nextViewportBounds);
       renderFloorMask();
       visitedFloors.add(targetFloor);

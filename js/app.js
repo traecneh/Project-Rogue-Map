@@ -360,19 +360,20 @@
     if (Number.isFinite(floorMinZoom)) {
       map.setMinZoom(floorMinZoom);
     }
-    renderFloorMask();
     map.options.maxBounds = null;
 
     const latlng = toLL(targetX, targetY);
     if (animate) {
       map.once('moveend', () => {
         map.setMaxBounds(nextViewportBounds);
+        renderFloorMask();
         forceFloorRefresh();
       });
       map.flyTo(latlng, targetZoom, { animate: true, duration });
     } else {
       map.setView(latlng, targetZoom, { animate: false });
       map.setMaxBounds(nextViewportBounds);
+      renderFloorMask();
       forceFloorRefresh();
     }
 

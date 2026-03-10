@@ -363,7 +363,7 @@
     if (Number.isFinite(floorMinZoom)) {
       map.setMinZoom(floorMinZoom);
     }
-    map.options.maxBounds = null;
+    map.setMaxBounds(null);
 
     const latlng = toLL(targetX, targetY);
     if (firstVisit) {

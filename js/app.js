@@ -56,6 +56,7 @@
   map.createPane('portalLines').style.zIndex    = 653;  // interactive transport nodes (portals/caves)
   map.createPane('labels-towns').style.zIndex   = 655;
   map.createPane('elite').style.zIndex          = 670;
+  map.createPane('deep-link').style.zIndex      = 680;
   map.createPane('floor-mask').style.zIndex     = 900;
   map.getPane('floor-mask').style.pointerEvents = 'none';
 
@@ -92,7 +93,9 @@
   const poisFG        = L.layerGroup().addTo(map); // ON by default
   const zonesFG       = L.featureGroup();          // OFF at load
   const eliteFG       = L.featureGroup().addTo(map);
+  const deepLinkFG    = L.featureGroup().addTo(map);
   const floorMaskFG   = L.featureGroup().addTo(map);
+  let coordinateUrlMarker = null;
 
   // -------- UI hooks --------
   const $ = sel => document.querySelector(sel);
@@ -130,6 +133,8 @@
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
   const SEARCH_PARAM_KEYS = ['search', 'q'];
+  const COORDINATE_X_PARAM_KEYS = ['x'];
+  const COORDINATE_Y_PARAM_KEYS = ['y'];
   const SEARCH_CLUSTER_RADIUS = 1; // how many chunks around the center to score
   const SEARCH_SUGGESTION_LIMIT = 12;
   const SEARCH_TYPE_ORDER = { monster: 0, town: 1, poi: 2 };
@@ -158,12 +163,76 @@
     window.history.replaceState(null, '', next);
   }
 
+  function readParamFromUrl(params, keys) {
+    if (!(params instanceof URLSearchParams)) return '';
+    for (const key of keys) {
+      const val = params.get(key);
+      if (typeof val === 'string' && val.trim()) return val.trim();
+    }
+    return '';
+  }
+
+  function parseCoordinateValue(raw) {
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    const num = Number(raw.trim());
+    return Number.isFinite(num) ? Math.round(num) : null;
+  }
+
+  function readCoordinateTargetFromUrl() {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const x = parseCoordinateValue(readParamFromUrl(params, COORDINATE_X_PARAM_KEYS));
+    const y = parseCoordinateValue(readParamFromUrl(params, COORDINATE_Y_PARAM_KEYS));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  }
+
+  function normalizeCoordinateTarget(target) {
+    if (!target || !IMG_W || !IMG_H) return null;
+    const rawX = clamp(Math.round(target.x), 0, IMG_W);
+    const floor = floorForX(rawX);
+    const x = clampFloorX(rawX, floor);
+    const y = clamp(Math.round(target.y), 0, IMG_H);
+    return { x, y };
+  }
+
   function nameIcon(innerHtml)  {
     return L.divIcon({
       className: 'lbl',
       html: `<div class="lbl-inner">${innerHtml}</div>`,
       iconSize: null
     });
+  }
+
+  function coordinateLinkIcon() {
+    return L.divIcon({
+      className: 'coord-link-marker',
+      html: '<div class="coord-link-marker-inner" aria-hidden="true">X</div>',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+  }
+
+  function showCoordinateTargetMarker(x, y) {
+    const latlng = toLL(x, y);
+    if (!coordinateUrlMarker) {
+      coordinateUrlMarker = L.marker(latlng, {
+        pane: 'deep-link',
+        interactive: false,
+        keyboard: false,
+        icon: coordinateLinkIcon()
+      }).addTo(deepLinkFG);
+    } else {
+      coordinateUrlMarker.setLatLng(latlng);
+    }
+  }
+
+  function focusCoordinateTarget(target, opts = {}) {
+    const point = normalizeCoordinateTarget(target);
+    if (!point) return null;
+    showCoordinateTargetMarker(point.x, point.y);
+    const focused = focusWorldPoint(point.x, point.y, opts);
+    return focused ? point : null;
   }
 
   function setPanelCollapsed(collapsed) {
@@ -1492,6 +1561,8 @@
 
   const initialSearchTerm = readSearchFromUrl();
   const startedWithSearch = !!(initialSearchTerm && initialSearchTerm.trim());
+  const initialCoordinateTarget = readCoordinateTargetFromUrl();
+  const startedWithCoordinateTarget = !!initialCoordinateTarget;
   if (initialSearchTerm && searchInput) {
     searchInput.value = initialSearchTerm;
     runSearch(true); // immediate for deep links (exact match)
@@ -1685,6 +1756,14 @@
       if (startedWithSearch && hasActiveSearch) {
         ensureMonstersLayerOn(true);
         refreshedViaSearch = true;
+      }
+
+      const focusedCoordinateTarget = startedWithCoordinateTarget
+        ? focusCoordinateTarget(initialCoordinateTarget, { duration: 0.8, zoomBoost: 4 })
+        : null;
+      if (focusedCoordinateTarget) {
+        setCoordDisplay(focusedCoordinateTarget.x, focusedCoordinateTarget.y);
+      } else if (startedWithSearch && hasActiveSearch) {
         const focused = focusOnSearchMatches();
         if (!focused) {
           const candidates = vibeTargets();

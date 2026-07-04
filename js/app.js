@@ -2,37 +2,28 @@
 // If VS Code still flags DOM/Leaflet types, you can uncomment the next line:
 // // @ts-nocheck
 
+import {
+  CHUNK_SIZE,
+  DATA,
+  FLOOR_VIEW_PADDING_X,
+  FLOOR_VIEW_PADDING_Y,
+  FLOOR_WIDTH,
+  FLOORS,
+  IMG_PATH,
+  INVERT_Y,
+  MATCH_ZINDEX_OFFSET,
+  MIN_CHUNK_SCREEN_PX,
+  MONSTER_FILTER_HINT_DEFAULT,
+  MONSTER_FILTER_HINT_NEED_RANGE,
+  MONSTER_FILTER_HINT_UNAVAILABLE,
+  SEARCH_CLUSTER_RADIUS,
+  SEARCH_LABEL_MIN_PX,
+  SEARCH_SUGGESTION_LIMIT,
+  SEARCH_TYPE_ORDER,
+  ZOOM_OUT_EXTRA
+} from './config.js';
+
 (() => {
-  const IMG_PATH = './img/Map_Combined.png';
-  const DATA = {
-    towns:      './data/towns.json',
-    portals:    './data/portals.json',      // labels and/or connections
-    encounters: './data/encounters.json',   // source for Monsters (chunk labels)
-    caves:      './data/caves.json',
-    zones:      './data/zones.json',
-    pois:       './data/poi.json',
-    crim:       './data/crim_spawns.json',
-    monsterLvls:'./data/monster_levels.json'
-  };
-
-  const INVERT_Y = true;
-  const ZOOM_OUT_EXTRA = 2;
-  const MATCH_ZINDEX_OFFSET = 10000;
-  const FLOOR_WIDTH = 4096;
-  const FLOOR_VIEW_PADDING_X = 288;
-  const FLOOR_VIEW_PADDING_Y = 224;
-  const FLOORS = {
-    overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: FLOOR_WIDTH, offset: 0 },
-    underground: { key: 'underground', label: 'Underground', minX: FLOOR_WIDTH, maxX: FLOOR_WIDTH * 2, offset: FLOOR_WIDTH }
-  };
-  const MONSTER_FILTER_HINT_DEFAULT = 'Showing all levels. Set min/max to filter.';
-  const MONSTER_FILTER_HINT_UNAVAILABLE = 'Monster level data unavailable.';
-  const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode.';
-
-  // Chunk constants
-  const CHUNK_SIZE = 16;          // pixels per chunk
-  const MIN_CHUNK_SCREEN_PX = 26; // minimum on-screen chunk size to draw label stacks
-  const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6; // ensure labels stay readable when auto-zooming for search
 
   // -------- Map & panes --------
   const map = L.map('map', {
@@ -135,9 +126,6 @@
   const SEARCH_PARAM_KEYS = ['search', 'q'];
   const COORDINATE_X_PARAM_KEYS = ['x'];
   const COORDINATE_Y_PARAM_KEYS = ['y'];
-  const SEARCH_CLUSTER_RADIUS = 1; // how many chunks around the center to score
-  const SEARCH_SUGGESTION_LIMIT = 12;
-  const SEARCH_TYPE_ORDER = { monster: 0, town: 1, poi: 2 };
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }

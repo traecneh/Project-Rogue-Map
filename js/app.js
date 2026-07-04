@@ -22,6 +22,7 @@ import {
   SEARCH_TYPE_ORDER,
   ZOOM_OUT_EXTRA
 } from './config.js';
+import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
 
 (() => {
 
@@ -90,14 +91,6 @@ import {
 
   // -------- UI hooks --------
   const $ = sel => document.querySelector(sel);
-  const debounce = (fn, ms = 120) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; };
-  const escHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const readCssVar = name => {
-    const root = typeof document !== 'undefined' ? document.documentElement : null;
-    if (!root) return '';
-    return getComputedStyle(root).getPropertyValue(name).trim();
-  };
   const getZoneColor = () => readCssVar('--zone-color') || '#f59e0b';
   const getCrimColor = () => readCssVar('--crim-color') || '#fb7185';
 

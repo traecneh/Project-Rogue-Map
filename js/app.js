@@ -263,6 +263,14 @@
   // lat = y, lng = x for CRS.Simple; we’ll set the final mapping after image load (needs IMG_H for Y flip)
   let toLL = (x, y) => L.latLng(y, x);
 
+  function mapLat(y) {
+    return INVERT_Y ? IMG_H - y : y;
+  }
+
+  function toFloorLL(_floor, x, y) {
+    return L.latLng(mapLat(y), x);
+  }
+
   function toGameXY(ll) {
     const x = clamp(Math.round(ll.lng), 0, IMG_W);
     const yTop = clamp(Math.round(ll.lat), 0, IMG_H);
@@ -296,14 +304,14 @@
 
   function floorBounds(floor) {
     const cfg = floorConfig(floor);
-    return L.latLngBounds(toLL(cfg.minX, 0), toLL(cfg.maxX, IMG_H));
+    return L.latLngBounds(toFloorLL(floor, cfg.minX, 0), toFloorLL(floor, cfg.maxX, IMG_H));
   }
 
   function floorViewportBounds(floor) {
     const cfg = floorConfig(floor);
     return L.latLngBounds(
-      toLL(cfg.minX - FLOOR_VIEW_PADDING_X, -FLOOR_VIEW_PADDING_Y),
-      toLL(cfg.maxX + FLOOR_VIEW_PADDING_X, IMG_H + FLOOR_VIEW_PADDING_Y)
+      toFloorLL(floor, cfg.minX - FLOOR_VIEW_PADDING_X, -FLOOR_VIEW_PADDING_Y),
+      toFloorLL(floor, cfg.maxX + FLOOR_VIEW_PADDING_X, IMG_H + FLOOR_VIEW_PADDING_Y)
     );
   }
 
@@ -311,8 +319,8 @@
     floorMaskFG.clearLayers();
     if (!IMG_W || !IMG_H) return;
     const hiddenBounds = currentFloor === 'overworld'
-      ? L.latLngBounds(toLL(FLOOR_WIDTH, 0), toLL(IMG_W, IMG_H))
-      : L.latLngBounds(toLL(0, 0), toLL(FLOOR_WIDTH, IMG_H));
+      ? L.latLngBounds(toFloorLL('underground', FLOOR_WIDTH, 0), toFloorLL('underground', IMG_W, IMG_H))
+      : L.latLngBounds(toFloorLL('overworld', 0, 0), toFloorLL('overworld', FLOOR_WIDTH, IMG_H));
     L.rectangle(hiddenBounds, {
       pane: 'floor-mask',
       stroke: false,
@@ -1659,8 +1667,7 @@
     const overlay = L.imageOverlay(IMG_PATH, bounds, { className: 'map-image', interactive: false }).addTo(map);
 
     // final mapping (apply Y flip if requested)
-    toLL = INVERT_Y ? (x, y) => L.latLng(IMG_H - y, x)
-                    : (x, y) => L.latLng(y, x);
+    toLL = (x, y) => L.latLng(mapLat(y), x);
 
     const initialFloorBounds = currentFloorBounds();
     floorMinZoom = map.getBoundsZoom(initialFloorBounds, true) - ZOOM_OUT_EXTRA;

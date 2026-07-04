@@ -1669,6 +1669,16 @@
   monsterLevelExclusiveBtn?.addEventListener('click', () => setMonsterLevelExclusive(!monsterFilterExclusive));
   syncMonsterLevelExclusiveBtn();
 
+  function exposeTestApi() {
+    if (typeof window === 'undefined') return;
+    if (!window.__PROJECT_ROGUE_TEST_HOOKS__) return;
+    window.__PROJECT_ROGUE_TEST_HOOKS__.api = {
+      commitSearch,
+      groups: { towns, poisFG },
+      elements: { searchInput, pillTowns, pillPois }
+    };
+  }
+
   // -------- Image/map load --------
   const baseImg = new Image();
   baseImg.src = IMG_PATH;
@@ -2127,4 +2137,5 @@
     forceFloorRefresh();
   });
 
+  exposeTestApi();
 })();

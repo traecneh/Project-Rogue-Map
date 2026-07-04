@@ -1,8 +1,9 @@
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import assert from 'node:assert';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import path from 'node:path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, '..');
 const appPath = path.join(root, 'js', 'app.js');
 
@@ -275,22 +276,14 @@ function createHarness() {
   };
 }
 
-const source = fs.readFileSync(appPath, 'utf8');
-const exposedSource = source.replace(
-  /\n\}\)\(\);\s*$/,
-  `
-  window.__projectRogueTest = {
-    commitSearch,
-    groups: { towns, poisFG },
-    elements: { searchInput, pillTowns, pillPois }
-  };
-})();`
-);
-
 const harness = createHarness();
-vm.runInNewContext(exposedSource, harness.context, { filename: appPath });
+Object.assign(globalThis, harness.context);
+globalThis.window.__PROJECT_ROGUE_TEST_HOOKS__ = {};
 
-const api = harness.context.window.__projectRogueTest;
+await import(pathToFileURL(appPath).href);
+
+const api = globalThis.window.__PROJECT_ROGUE_TEST_HOOKS__.api;
+assert.ok(api, 'app test API was not exposed');
 const townMarker = makeMarker('Farmtown', 'town');
 const poiMarker = makeMarker('Ancient Ruins', 'poi');
 api.groups.towns.addLayer(townMarker);

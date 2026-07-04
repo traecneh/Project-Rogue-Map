@@ -670,6 +670,7 @@
   let monsterFilterMax = null;
   let monsterFilterExclusive = false;
   let currentSearchRegex = null;
+  let currentSearchType = null;
   let searchItems = [];           // [{ name, normalized, level, type, x?, y? }]
 
   function namesForChunk(cx, cy) {
@@ -1466,6 +1467,15 @@
     return searchItems.find(it => it.normalized === norm) || null;
   }
 
+  function activeSearchTypeForRun(term, exact) {
+    if (!term) return null;
+    if (currentSearchType) return currentSearchType;
+    if (!exact) return null;
+    const entry = findSearchEntryByName(term);
+    currentSearchType = entry?.type || null;
+    return currentSearchType;
+  }
+
   function ensureLabelLayerOn(type) {
     if (type === 'town') {
       if (!isOn(pillTowns)) { setPill(pillTowns, true); setLayerVisible(towns, true); }
@@ -1493,6 +1503,7 @@
     const clean = typeof termOrEntry === 'string' ? (termOrEntry || '').trim() : (entry?.name || '').trim();
     searchInput.value = clean;
     hideSearchSuggestions();
+    currentSearchType = clean ? (entry?.type || null) : null;
     if (!clean) {
       runSearch(false);
       return;
@@ -1513,6 +1524,8 @@
     currentSearchRegex = q
       ? new RegExp(exact ? `^${escaped}$` : escaped, 'i')
       : null;
+    if (!currentSearchRegex) currentSearchType = null;
+    const activeSearchType = activeSearchTypeForRun(q, exact);
 
     const markerGroups = [towns, portalsLblFG, poisFG];
 
@@ -1524,7 +1537,7 @@
       if (layer.setZIndexOffset) layer.setZIndexOffset(0);
     }));
 
-    if (currentSearchRegex) {
+    if (currentSearchRegex && activeSearchType !== 'monster') {
       markerGroups.forEach(g => g.eachLayer(layer => {
         const el = layer.getElement && layer.getElement(); if (!el) return;
         const span = el.querySelector('span.n'); if (!span) return;

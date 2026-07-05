@@ -84,6 +84,10 @@ import {
   splitPortalItems
 } from './portal-state.js';
 import {
+  caveEndpoints,
+  transportFocusZoom
+} from './transport-state.js';
+import {
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
   monsterDifficultyColor,
@@ -994,6 +998,17 @@ import {
   }
   const refreshChunkLayerDebounced = debounce(refreshChunkLayer, 120);
 
+  function focusTransportPartner(partnerPoint, extraZoom = 0) {
+    if (!partnerPoint) return;
+    const targetZoom = transportFocusZoom({
+      currentZoom: map.getZoom(),
+      minZoom: map.getMinZoom(),
+      maxZoom: map.getMaxZoom(),
+      extraZoom
+    });
+    focusWorldPoint(partnerPoint.x + 0.5, partnerPoint.y + 0.5, { zoom: targetZoom, duration: 0.7 });
+  }
+
   // -------- Caves (paired markers with teleport helper) --------
   function renderCaves(cavesArr) {
     cavesFG.clearLayers();
@@ -1006,22 +1021,18 @@ import {
         bubblingMouseEvents: false
       }).addTo(cavesFG);
       marker.on('click', () => {
-        if (!partnerPoint) return;
-        const minZoom = map.getMinZoom();
-        const baseZoom = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
-        const desiredZoom = Math.max(map.getZoom(), baseZoom);
-        const maxZoom = map.getMaxZoom();
-        const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
-        focusWorldPoint(partnerPoint.x + 0.5, partnerPoint.y + 0.5, { zoom: targetZoom, duration: 0.7 });
+        focusTransportPartner(partnerPoint);
       });
     };
 
     for (const c of (cavesArr || [])) {
-      if (!c || !c.entry || !c.exit) continue;
-      const entryLL = toLL(c.entry.x + 0.5, c.entry.y + 0.5);
-      const exitLL  = toLL(c.exit.x  + 0.5, c.exit.y  + 0.5);
-      makeMarker(entryLL, c.exit);
-      makeMarker(exitLL, c.entry);
+      const ep = caveEndpoints(c);
+      if (!ep) continue;
+      const [x1, y1, x2, y2] = ep;
+      const entryLL = toLL(x1 + 0.5, y1 + 0.5);
+      const exitLL  = toLL(x2 + 0.5, y2 + 0.5);
+      makeMarker(entryLL, { x: x2, y: y2 });
+      makeMarker(exitLL, { x: x1, y: y1 });
     }
   }
 
@@ -1042,12 +1053,7 @@ import {
       }).addTo(portalLinesFG);
       if (!interactive) return;
       marker.on('click', () => {
-        const minZoom = map.getMinZoom();
-        const baseZoom = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
-        const desiredZoom = Math.max(map.getZoom(), baseZoom + 1);
-        const maxZoom = map.getMaxZoom();
-        const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
-        focusWorldPoint(partnerPoint.x + 0.5, partnerPoint.y + 0.5, { zoom: targetZoom, duration: 0.7 });
+        focusTransportPartner(partnerPoint, 1);
       });
     };
 

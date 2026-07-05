@@ -160,6 +160,27 @@ test('portal helpers split endpoint pairs from label-only records', () => {
   assert.deepEqual(splitPortalItems(null), { portalPairs: [], portalLabels: [] });
 });
 
+test('transport helpers detect finite cave endpoint pairs', async () => {
+  const { caveEndpoints } = await import('../js/transport-state.js').catch(() => ({}));
+
+  assert.equal(typeof caveEndpoints, 'function');
+  assert.deepEqual(caveEndpoints({ entry: { x: 1, y: 2 }, exit: { x: 3, y: 4 } }), [1, 2, 3, 4]);
+  assert.equal(caveEndpoints({ entry: { x: 1, y: 2 }, exit: { x: 3, y: Number.NaN } }), null);
+  assert.equal(caveEndpoints({ entry: { x: 1, y: 2 } }), null);
+  assert.equal(caveEndpoints(null), null);
+});
+
+test('transport helpers preserve cave and portal focus zoom behavior', async () => {
+  const { transportFocusZoom } = await import('../js/transport-state.js').catch(() => ({}));
+
+  assert.equal(typeof transportFocusZoom, 'function');
+  assert.equal(transportFocusZoom({ currentZoom: 4, minZoom: 0, maxZoom: 8, extraZoom: 0 }), 4);
+  assert.equal(transportFocusZoom({ currentZoom: 1, minZoom: 0, maxZoom: 8, extraZoom: 0 }), 2);
+  assert.equal(transportFocusZoom({ currentZoom: 1, minZoom: 0, maxZoom: 8, extraZoom: 1 }), 3);
+  assert.equal(transportFocusZoom({ currentZoom: 1, minZoom: 0, maxZoom: 2, extraZoom: 1 }), 2);
+  assert.equal(transportFocusZoom({ currentZoom: 5, minZoom: Number.NaN, maxZoom: Number.NaN, extraZoom: 1 }), 6);
+});
+
 test('search helpers normalize, escape, and match names safely', () => {
   assert.equal(normalizeName('  Death Tyrant  '), 'death tyrant');
   assert.equal(normalizeName(null), '');

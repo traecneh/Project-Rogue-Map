@@ -47,3 +47,13 @@ test('run all checks includes the workflow and runbook contract test', () => {
   assert.match(script, /tests\\project_workflow\.test\.mjs/);
   assert.match(script, /node', '--test', 'tests\\project_workflow\.test\.mjs'/);
 });
+
+test('check scripts discover JavaScript syntax targets dynamically', () => {
+  for (const path of ['tools/run_ci_checks.ps1', 'tools/run_all_checks.ps1']) {
+    const script = readText(path);
+
+    assert.match(script, /Get-ChildItem -Path 'js', 'tools', 'tests'/);
+    assert.match(script, /-Include '\*\.js', '\*\.mjs'/);
+    assert.doesNotMatch(script, /\$jsFiles\s*=\s*@\(/);
+  }
+});

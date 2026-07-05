@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $repoRoot
+$repoRootPath = $repoRoot.Path
 
 function Invoke-Check {
   param(
@@ -28,27 +29,9 @@ function Invoke-Check {
   }
 }
 
-$jsFiles = @(
-  'js\app.js',
-  'js\chunk-label-state.js',
-  'js\config.js',
-  'js\coordinates.js',
-  'js\data-normalization.js',
-  'js\dom-utils.js',
-  'js\layer-state.js',
-  'js\monster-filter-state.js',
-  'js\monster-utils.js',
-  'js\portal-state.js',
-  'js\search-focus-state.js',
-  'js\search-index.js',
-  'js\search-utils.js',
-  'js\url-state.js',
-  'tools\deploy_smoke.mjs',
-  'tests\deploy_smoke.test.mjs',
-  'tests\project_workflow.test.mjs',
-  'tests\pure_utils.test.mjs',
-  'tests\search_layer_regression.mjs'
-)
+$jsFiles = Get-ChildItem -Path 'js', 'tools', 'tests' -Recurse -File -Include '*.js', '*.mjs' |
+  Sort-Object FullName |
+  ForEach-Object { $_.FullName.Substring($repoRootPath.Length + 1) }
 
 foreach ($file in $jsFiles) {
   Invoke-Check "Syntax check $file" @('node', '--check', $file)

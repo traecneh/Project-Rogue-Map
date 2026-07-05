@@ -71,6 +71,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/portal-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./portal-state.js');
   }
+  if (!/from\s+['"]\.\/transport-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./transport-state.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -171,6 +174,20 @@ export function validatePortalStateModule(source) {
   return issues;
 }
 
+export function validateTransportStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  for (const name of [
+    'caveEndpoints',
+    'transportFocusZoom'
+  ]) {
+    if (!new RegExp(`\\bexport\\s+function\\s+${name}\\b`).test(text)) {
+      issues.push(`js/transport-state.js did not contain ${name}`);
+    }
+  }
+  return issues;
+}
+
 export function validateMonsterFilterStateModule(source) {
   const text = String(source || '');
   const issues = [];
@@ -241,6 +258,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/portal-state.js', [
     ...responseIssues(portalState),
     ...(portalState.ok ? validatePortalStateModule(portalState.text) : [])
+  ]));
+
+  const transportState = await fetchText(fetchImpl, new URL('js/transport-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/transport-state.js', [
+    ...responseIssues(transportState),
+    ...(transportState.ok ? validateTransportStateModule(transportState.text) : [])
   ]));
 
   const searchIndex = await fetchText(fetchImpl, new URL('js/search-index.js', normalizedBaseUrl).href);

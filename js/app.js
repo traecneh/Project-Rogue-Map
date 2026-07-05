@@ -48,6 +48,12 @@ import {
   selectTopMonster as selectTopChunkMonster
 } from './chunk-label-state.js';
 import {
+  bestSearchClusterCenter as bestSearchClusterCenterValue,
+  searchEntryFocusTarget,
+  searchLabelZoom as searchLabelZoomValue,
+  searchTypeForRun
+} from './search-focus-state.js';
+import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
 } from './layer-state.js';
@@ -1323,11 +1329,13 @@ import {
   }
 
   function activeSearchTypeForRun(term, exact) {
-    if (!term) return null;
-    if (currentSearchType) return currentSearchType;
-    if (!exact) return null;
-    const entry = findSearchEntryByName(term);
-    currentSearchType = entry?.type || null;
+    const entry = exact ? findSearchEntryByName(term) : null;
+    currentSearchType = searchTypeForRun({
+      term,
+      exact,
+      currentSearchType,
+      entry
+    });
     return currentSearchType;
   }
 
@@ -1341,15 +1349,14 @@ import {
   }
 
   function focusOnEntry(entry) {
-    if (!entry) return focusOnSearchMatches();
-    if (entry.type === 'monster') return focusOnSearchMatches();
-    const { x, y } = entry;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return focusOnSearchMatches();
-    const minZoom = map.getMinZoom();
-    const desired = Number.isFinite(minZoom) ? minZoom + 2 : map.getZoom();
-    const maxZoom = map.getMaxZoom();
-    const targetZoom = Number.isFinite(maxZoom) ? Math.min(Math.max(map.getZoom(), desired), maxZoom) : Math.max(map.getZoom(), desired);
-    return focusWorldPoint(x, y, { zoom: targetZoom, duration: 0.8 });
+    const target = searchEntryFocusTarget({
+      entry,
+      currentZoom: map.getZoom(),
+      minZoom: map.getMinZoom(),
+      maxZoom: map.getMaxZoom()
+    });
+    if (target.kind === 'matches') return focusOnSearchMatches();
+    return focusWorldPoint(target.x, target.y, { zoom: target.zoom, duration: target.duration });
   }
 
   function commitSearch(termOrEntry, opts = {}) {
@@ -1456,58 +1463,22 @@ import {
     }
   }
 
-  function chunkSearchMatchCount(names) {
-    if (!currentSearchRegex || !Array.isArray(names) || !names.length) return 0;
-    let hits = 0;
-    for (const n of names) {
-      if (typeof n !== 'string') continue;
-      if (currentSearchRegex.test(n)) hits++;
-    }
-    return hits;
-  }
-
   function bestSearchClusterCenter() {
-    if (!currentSearchRegex || !encountersIndex?.size) return null;
-    const counts = new Map();
-    for (const [key, arr] of encountersIndex.entries()) {
-      const matches = chunkSearchMatchCount(arr);
-      if (!matches) continue;
-      counts.set(key, matches);
-    }
-    if (!counts.size) return null;
-
-    let best = null;
-    for (const key of counts.keys()) {
-      const [cxRaw, cyRaw] = key.split(',').map(n => Number(n));
-      if (!Number.isFinite(cxRaw) || !Number.isFinite(cyRaw)) continue;
-      let sum = 0, wx = 0, wy = 0;
-      for (let dy = -SEARCH_CLUSTER_RADIUS; dy <= SEARCH_CLUSTER_RADIUS; dy++) {
-        for (let dx = -SEARCH_CLUSTER_RADIUS; dx <= SEARCH_CLUSTER_RADIUS; dx++) {
-          const neighborKey = `${cxRaw + dx},${cyRaw + dy}`;
-          const val = counts.get(neighborKey);
-          if (!val) continue;
-          sum += val;
-          wx += (cxRaw + dx) * val;
-          wy += (cyRaw + dy) * val;
-        }
-      }
-      if (!best || sum > best.sum) {
-        best = { sum, wx, wy };
-      }
-    }
-    if (!best || best.sum <= 0) return null;
-    return { cx: best.wx / best.sum, cy: best.wy / best.sum };
+    return bestSearchClusterCenterValue({
+      encountersIndex,
+      searchRegex: currentSearchRegex,
+      radius: SEARCH_CLUSTER_RADIUS
+    });
   }
 
   function bestSearchLabelZoom() {
-    const minZ = Number.isFinite(map.getMinZoom()) ? map.getMinZoom() : map.getZoom();
-    const maxZ = Number.isFinite(map.getMaxZoom()) ? map.getMaxZoom() : map.getZoom();
-    const neededPx = requiredChunkPxForSearchTerm(searchInput?.value || '');
-    for (let z = minZ; z <= maxZ; z++) {
-      const [cw, ch] = chunkScreenSizeAtZoom(z);
-      if (cw >= neededPx && ch >= neededPx) return z; // most zoomed-out that still keeps names visible
-    }
-    return maxZ;
+    return searchLabelZoomValue({
+      minZoom: map.getMinZoom(),
+      maxZoom: map.getMaxZoom(),
+      currentZoom: map.getZoom(),
+      neededPx: requiredChunkPxForSearchTerm(searchInput?.value || ''),
+      chunkScreenSizeAtZoom
+    });
   }
 
   function focusOnSearchMatches() {

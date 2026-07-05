@@ -62,6 +62,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/chunk-label-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./chunk-label-state.js');
   }
+  if (!/from\s+['"]\.\/search-focus-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./search-focus-state.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -109,6 +112,24 @@ export function validateChunkLabelStateModule(source) {
   }
   if (!/\bexport\s+function\s+selectTopMonster\b/.test(text)) {
     issues.push('js/chunk-label-state.js did not contain selectTopMonster');
+  }
+  return issues;
+}
+
+export function validateSearchFocusStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+searchTypeForRun\b/.test(text)) {
+    issues.push('js/search-focus-state.js did not contain searchTypeForRun');
+  }
+  if (!/\bexport\s+function\s+searchEntryFocusTarget\b/.test(text)) {
+    issues.push('js/search-focus-state.js did not contain searchEntryFocusTarget');
+  }
+  if (!/\bexport\s+function\s+bestSearchClusterCenter\b/.test(text)) {
+    issues.push('js/search-focus-state.js did not contain bestSearchClusterCenter');
+  }
+  if (!/\bexport\s+function\s+searchLabelZoom\b/.test(text)) {
+    issues.push('js/search-focus-state.js did not contain searchLabelZoom');
   }
   return issues;
 }
@@ -183,6 +204,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/chunk-label-state.js', [
     ...responseIssues(chunkLabelState),
     ...(chunkLabelState.ok ? validateChunkLabelStateModule(chunkLabelState.text) : [])
+  ]));
+
+  const searchFocusState = await fetchText(fetchImpl, new URL('js/search-focus-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/search-focus-state.js', [
+    ...responseIssues(searchFocusState),
+    ...(searchFocusState.ok ? validateSearchFocusStateModule(searchFocusState.text) : [])
   ]));
 
   const layerState = await fetchText(fetchImpl, new URL('js/layer-state.js', normalizedBaseUrl).href);

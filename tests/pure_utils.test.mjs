@@ -40,6 +40,13 @@ import {
 } from '../js/search-utils.js';
 import { buildSearchIndex } from '../js/search-index.js';
 import {
+  bestSearchClusterCenter,
+  searchEntryFocusTarget,
+  searchLabelZoom,
+  searchMatchCount,
+  searchTypeForRun
+} from '../js/search-focus-state.js';
+import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
 } from '../js/layer-state.js';
@@ -108,6 +115,74 @@ test('search suggestions preserve ranking by match, type, floor, and name', () =
   assert.deepEqual(
     suggestions.map(entry => entry.name),
     ['Alpha Monster', 'Alpha Town', 'Alpha Mine', 'Alpha Shrine']
+  );
+});
+
+test('search focus helpers resolve exact search types and entry focus targets', () => {
+  const monster = { name: 'Death Tyrant', type: 'monster' };
+  const town = { name: 'Farmtown', type: 'town', x: 80, y: 120 };
+  const poi = { name: 'Ancient Ruins', type: 'poi', x: 4500, y: 310 };
+
+  assert.equal(searchTypeForRun({ term: '', exact: true, currentSearchType: 'monster', entry: monster }), null);
+  assert.equal(searchTypeForRun({ term: 'death', exact: false, currentSearchType: null, entry: monster }), null);
+  assert.equal(searchTypeForRun({ term: 'Death Tyrant', exact: true, currentSearchType: null, entry: monster }), 'monster');
+  assert.equal(searchTypeForRun({ term: 'Farmtown', exact: true, currentSearchType: 'poi', entry: town }), 'poi');
+
+  assert.deepEqual(searchEntryFocusTarget({ entry: null, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
+  assert.deepEqual(searchEntryFocusTarget({ entry: monster, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
+  assert.deepEqual(searchEntryFocusTarget({ entry: { ...poi, x: Number.NaN }, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
+  assert.deepEqual(searchEntryFocusTarget({ entry: town, currentZoom: 2, minZoom: 0, maxZoom: 6 }), {
+    kind: 'point',
+    x: 80,
+    y: 120,
+    zoom: 2,
+    duration: 0.8
+  });
+  assert.deepEqual(searchEntryFocusTarget({ entry: poi, currentZoom: 5, minZoom: 0, maxZoom: 6 }), {
+    kind: 'point',
+    x: 4500,
+    y: 310,
+    zoom: 5,
+    duration: 0.8
+  });
+});
+
+test('search focus helpers find clustered monster matches and label zoom', () => {
+  const encountersIndex = new Map([
+    ['1,1', ['Death Tyrant', 'Wisp']],
+    ['2,1', ['Death Tyrant', 'Death Tyrant']],
+    ['10,10', ['Death Tyrant']],
+    ['bad,key', ['Death Tyrant']],
+    ['3,1', ['Goblin']]
+  ]);
+  const regex = createSearchRegex('Death Tyrant', true);
+
+  assert.equal(searchMatchCount(['Death Tyrant', 'Goblin', null, 'Death Tyrant'], regex), 2);
+  assert.deepEqual(
+    bestSearchClusterCenter({ encountersIndex, searchRegex: regex, radius: 1 }),
+    { cx: 5 / 3, cy: 1 }
+  );
+  assert.equal(bestSearchClusterCenter({ encountersIndex, searchRegex: null, radius: 1 }), null);
+
+  assert.equal(
+    searchLabelZoom({
+      minZoom: 0,
+      maxZoom: 4,
+      currentZoom: 2,
+      neededPx: 20,
+      chunkScreenSizeAtZoom: z => [8 * 2 ** z, 10 * 2 ** z]
+    }),
+    2
+  );
+  assert.equal(
+    searchLabelZoom({
+      minZoom: Number.NaN,
+      maxZoom: Number.NaN,
+      currentZoom: 3,
+      neededPx: 200,
+      chunkScreenSizeAtZoom: () => [10, 10]
+    }),
+    3
   );
 });
 

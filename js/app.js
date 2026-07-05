@@ -43,6 +43,11 @@ import {
 } from './search-utils.js';
 import { buildSearchIndex as buildSearchItems } from './search-index.js';
 import {
+  chunkMonsterNames,
+  isBossMonster as isBossMonsterName,
+  selectTopMonster as selectTopChunkMonster
+} from './chunk-label-state.js';
+import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
 } from './layer-state.js';
@@ -58,14 +63,12 @@ import {
   urlWithSearchTerm
 } from './url-state.js';
 import {
-  ZONE_BOSS_LEVEL,
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
   monsterDifficultyColor,
   monsterLevelFilterActive as monsterLevelFilterActiveValue,
   optionValueFromLevel,
   parseMonsterLevelValue,
-  passesMonsterLevelFilter as passesMonsterLevelFilterValue,
   sortedMonsterLevelValues,
   zoneDifficultyStyle,
   zoneMaxLevel
@@ -677,25 +680,16 @@ import {
   let searchItems = [];           // [{ name, normalized, level, type, x?, y? }]
 
   function namesForChunk(cx, cy) {
-    if (!encountersIndex) return [];
-    const arr = encountersIndex.get(`${cx},${cy}`);
-    if (!Array.isArray(arr) || !arr.length) return [];
-    const uniq = Array.from(new Set(arr));
-    const sortedEntries = uniq
-      .map(name => ({ name, level: monsterLevel(name) }))
-      .sort((a, b) => {
-        const la = Number.isFinite(a.level) ? a.level : -Infinity;
-        const lb = Number.isFinite(b.level) ? b.level : -Infinity;
-        if (lb !== la) return lb - la;
-        return a.name.localeCompare(b.name);
-      });
-    const filtered = sortedEntries.filter(entry => passesMonsterLevelFilter(entry.level));
-    if (!filtered.length) return [];
-    if (monsterFilterExclusive && monsterLevelFilterActive() && filtered.length !== sortedEntries.length) {
-      return [];
-    }
-    const names = filtered.map(entry => entry.name);
-    return currentSearchRegex ? names.filter(n => currentSearchRegex.test(n)) : names;
+    return chunkMonsterNames({
+      encountersIndex,
+      cx,
+      cy,
+      monsterLevelForName: monsterLevel,
+      min: monsterFilterMin,
+      max: monsterFilterMax,
+      exclusive: monsterFilterExclusive,
+      searchRegex: currentSearchRegex
+    });
   }
 
   function monsterLevel(name) {
@@ -715,10 +709,6 @@ import {
 
   function monsterLevelFilterActive() {
     return monsterLevelFilterActiveValue(monsterFilterMin, monsterFilterMax);
-  }
-
-  function passesMonsterLevelFilter(level) {
-    return passesMonsterLevelFilterValue(level, monsterFilterMin, monsterFilterMax);
   }
 
   function syncMonsterLevelExclusiveBtn() {
@@ -807,26 +797,6 @@ import {
     if (isOn(pillMonsters)) refreshChunkLayer();
   }
 
-  function isBossMonster(name) {
-    const lvl = monsterLevel(name);
-    return Number.isFinite(lvl) && lvl >= ZONE_BOSS_LEVEL;
-  }
-  function selectTopMonster(names) {
-    if (!Array.isArray(names) || !names.length) return null;
-    let bestName = null;
-    let bestLevel = -Infinity;
-    for (const name of names) {
-      const lvl = monsterLevel(name);
-      if (Number.isFinite(lvl) && (bestName === null || lvl > bestLevel)) {
-        bestName = name;
-        bestLevel = lvl;
-      }
-    }
-    if (bestName) return { name: bestName, level: bestLevel };
-    const fallbackName = names[0];
-    return fallbackName ? { name: fallbackName, level: monsterLevel(fallbackName) } : null;
-  }
-
   function chunkBounds(cx, cy) {
     const x0 = cx * CHUNK_SIZE, y0 = cy * CHUNK_SIZE;
     return L.latLngBounds(toLL(x0, y0), toLL(x0 + CHUNK_SIZE, y0 + CHUNK_SIZE));
@@ -836,7 +806,7 @@ import {
     const inner = el.querySelector('.chunk-label-inner'); if (!inner) return;
     inner.classList.remove('compact');
     inner.innerHTML = names.map(n => {
-      const boss = isBossMonster(n);
+      const boss = isBossMonsterName(n, monsterLevel);
       const lvl = monsterLevel(n);
       const tint = !boss ? monsterDifficultyColor(lvl) : null;
       const cls = boss ? 'line boss-monster' : 'line';
@@ -853,9 +823,9 @@ import {
     }
     if (fs < 8) {
       inner.classList.add('compact');
-      const top = selectTopMonster(names);
+      const top = selectTopChunkMonster(names, monsterLevel);
       if (top && Number.isFinite(top.level)) {
-        const cls = isBossMonster(top.name) ? 'chunk-top-level boss-monster' : 'chunk-top-level';
+        const cls = isBossMonsterName(top.name, monsterLevel) ? 'chunk-top-level boss-monster' : 'chunk-top-level';
         const difficulty = zoneDifficultyStyle(top.level);
         const styleBits = [];
         if (difficulty?.bg) styleBits.push(`background:${difficulty.bg}`);

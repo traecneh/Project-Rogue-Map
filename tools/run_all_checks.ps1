@@ -30,6 +30,7 @@ function Invoke-Check {
 
 $jsFiles = @(
   'js\app.js',
+  'js\chunk-label-state.js',
   'js\config.js',
   'js\coordinates.js',
   'js\dom-utils.js',

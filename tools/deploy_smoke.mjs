@@ -59,6 +59,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/search-index\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./search-index.js');
   }
+  if (!/from\s+['"]\.\/chunk-label-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./chunk-label-state.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -91,6 +94,21 @@ export function validateSearchIndexModule(source) {
   const issues = [];
   if (!/\bexport\s+function\s+buildSearchIndex\b/.test(text)) {
     issues.push('js/search-index.js did not contain buildSearchIndex');
+  }
+  return issues;
+}
+
+export function validateChunkLabelStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+chunkMonsterNames\b/.test(text)) {
+    issues.push('js/chunk-label-state.js did not contain chunkMonsterNames');
+  }
+  if (!/\bexport\s+function\s+isBossMonster\b/.test(text)) {
+    issues.push('js/chunk-label-state.js did not contain isBossMonster');
+  }
+  if (!/\bexport\s+function\s+selectTopMonster\b/.test(text)) {
+    issues.push('js/chunk-label-state.js did not contain selectTopMonster');
   }
   return issues;
 }
@@ -159,6 +177,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/search-index.js', [
     ...responseIssues(searchIndex),
     ...(searchIndex.ok ? validateSearchIndexModule(searchIndex.text) : [])
+  ]));
+
+  const chunkLabelState = await fetchText(fetchImpl, new URL('js/chunk-label-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/chunk-label-state.js', [
+    ...responseIssues(chunkLabelState),
+    ...(chunkLabelState.ok ? validateChunkLabelStateModule(chunkLabelState.text) : [])
   ]));
 
   const layerState = await fetchText(fetchImpl, new URL('js/layer-state.js', normalizedBaseUrl).href);

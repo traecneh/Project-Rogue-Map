@@ -27,6 +27,11 @@ import {
   zoneMaxLevel
 } from '../js/monster-utils.js';
 import {
+  chunkMonsterNames,
+  isBossMonster,
+  selectTopMonster
+} from '../js/chunk-label-state.js';
+import {
   createSearchRegex,
   escapeSearchRegex,
   findSearchEntryByName,
@@ -308,6 +313,108 @@ test('monster filter status text covers unavailable, default, ranges, and exclus
   assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: 10, max: 10, exclusive: false, hints }), 'Filtering level 10');
   assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: 10, max: null, exclusive: false, hints }), 'Filtering levels 10+');
   assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: null, max: 20, exclusive: true, hints }), 'Filtering levels up to 20 · Exclusive');
+});
+
+test('chunk label helper de-duplicates, sorts, and filters monster names', () => {
+  const encountersIndex = new Map([
+    ['1,2', ['Wisp', 'Death Tyrant', 'Goblin', 'Dragon', 'Wisp', 'Unknown', '', null]]
+  ]);
+  const levels = new Map([
+    ['death tyrant', 105],
+    ['dragon', 50],
+    ['wisp', 30],
+    ['goblin', 5]
+  ]);
+  const monsterLevelForName = name => levels.get(normalizeName(name)) ?? null;
+
+  assert.deepEqual(
+    chunkMonsterNames({
+      encountersIndex,
+      cx: 1,
+      cy: 2,
+      monsterLevelForName
+    }),
+    ['Death Tyrant', 'Dragon', 'Wisp', 'Goblin', 'Unknown']
+  );
+  assert.deepEqual(
+    chunkMonsterNames({
+      encountersIndex,
+      cx: 1,
+      cy: 2,
+      monsterLevelForName,
+      min: 20,
+      max: 60
+    }),
+    ['Dragon', 'Wisp']
+  );
+  assert.deepEqual(
+    chunkMonsterNames({
+      encountersIndex,
+      cx: 1,
+      cy: 2,
+      monsterLevelForName,
+      searchRegex: createSearchRegex('wisp', true)
+    }),
+    ['Wisp']
+  );
+});
+
+test('chunk label helper hides mixed-level chunks in exclusive mode', () => {
+  const encountersIndex = new Map([
+    ['1,2', ['Dragon', 'Wisp']],
+    ['2,2', ['Dragon', 'Wisp', 'Goblin']]
+  ]);
+  const levels = new Map([
+    ['dragon', 50],
+    ['wisp', 30],
+    ['goblin', 5]
+  ]);
+  const monsterLevelForName = name => levels.get(normalizeName(name)) ?? null;
+
+  assert.deepEqual(
+    chunkMonsterNames({
+      encountersIndex,
+      cx: 1,
+      cy: 2,
+      monsterLevelForName,
+      min: 20,
+      max: 60,
+      exclusive: true
+    }),
+    ['Dragon', 'Wisp']
+  );
+  assert.deepEqual(
+    chunkMonsterNames({
+      encountersIndex,
+      cx: 2,
+      cy: 2,
+      monsterLevelForName,
+      min: 20,
+      max: 60,
+      exclusive: true
+    }),
+    []
+  );
+});
+
+test('chunk label helper selects top monsters and identifies bosses', () => {
+  const levels = new Map([
+    ['death tyrant', 105],
+    ['dragon', 50],
+    ['wisp', 30]
+  ]);
+  const monsterLevelForName = name => levels.get(normalizeName(name)) ?? null;
+
+  assert.deepEqual(
+    selectTopMonster(['Wisp', 'Dragon', 'Death Tyrant'], monsterLevelForName),
+    { name: 'Death Tyrant', level: 105 }
+  );
+  assert.deepEqual(
+    selectTopMonster(['Unknown'], monsterLevelForName),
+    { name: 'Unknown', level: null }
+  );
+  assert.equal(isBossMonster('Death Tyrant', monsterLevelForName), true);
+  assert.equal(isBossMonster('Dragon', monsterLevelForName), false);
 });
 
 test('zone helpers preserve current level formatting and difficulty thresholds', () => {

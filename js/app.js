@@ -41,6 +41,19 @@ import {
   findSearchSuggestions as findSearchSuggestionsInList,
   normalizeName
 } from './search-utils.js';
+import {
+  ZONE_BOSS_LEVEL,
+  enforceMonsterLevelRangeValues,
+  formatZoneLevels,
+  monsterDifficultyColor,
+  monsterLevelFilterActive as monsterLevelFilterActiveValue,
+  optionValueFromLevel,
+  parseMonsterLevelValue,
+  passesMonsterLevelFilter as passesMonsterLevelFilterValue,
+  sortedMonsterLevelValues,
+  zoneDifficultyStyle,
+  zoneMaxLevel
+} from './monster-utils.js';
 
 (() => {
 
@@ -745,25 +758,11 @@ import {
   }
 
   function monsterLevelFilterActive() {
-    return Number.isFinite(monsterFilterMin) || Number.isFinite(monsterFilterMax);
+    return monsterLevelFilterActiveValue(monsterFilterMin, monsterFilterMax);
   }
 
   function passesMonsterLevelFilter(level) {
-    if (!monsterLevelFilterActive()) return true;
-    if (!Number.isFinite(level)) return false;
-    if (Number.isFinite(monsterFilterMin) && level < monsterFilterMin) return false;
-    if (Number.isFinite(monsterFilterMax) && level > monsterFilterMax) return false;
-    return true;
-  }
-
-  function optionValueFromLevel(value) {
-    return Number.isFinite(value) ? String(value) : '';
-  }
-
-  function parseMonsterLevelValue(raw) {
-    if (raw === '' || raw === undefined || raw === null) return null;
-    const num = Number(raw);
-    return Number.isFinite(num) ? num : null;
+    return passesMonsterLevelFilterValue(level, monsterFilterMin, monsterFilterMax);
   }
 
   function syncMonsterLevelExclusiveBtn() {
@@ -787,9 +786,7 @@ import {
   }
 
   function updateMonsterLevelSelectOptions() {
-    const levels = monsterLevels
-      ? Array.from(new Set(Array.from(monsterLevels.values()).filter(Number.isFinite))).sort((a, b) => a - b)
-      : [];
+    const levels = sortedMonsterLevelValues(monsterLevels);
     monsterLevelValues = levels;
     if (!monsterLevelValues.includes(monsterFilterMin)) monsterFilterMin = null;
     if (!monsterLevelValues.includes(monsterFilterMax)) monsterFilterMax = null;
@@ -846,17 +843,11 @@ import {
   }
 
   function enforceMonsterLevelRange(whichChanged) {
-    const hasMin = Number.isFinite(monsterFilterMin);
-    const hasMax = Number.isFinite(monsterFilterMax);
-    if (!hasMin || !hasMax) return;
-    if (monsterFilterMin <= monsterFilterMax) return;
-    if (whichChanged === 'min') {
-      monsterFilterMax = monsterFilterMin;
-      if (monsterLevelMaxSelect) monsterLevelMaxSelect.value = optionValueFromLevel(monsterFilterMax);
-    } else {
-      monsterFilterMin = monsterFilterMax;
-      if (monsterLevelMinSelect) monsterLevelMinSelect.value = optionValueFromLevel(monsterFilterMin);
-    }
+    const next = enforceMonsterLevelRangeValues(monsterFilterMin, monsterFilterMax, whichChanged);
+    monsterFilterMin = next.min;
+    monsterFilterMax = next.max;
+    if (monsterLevelMinSelect) monsterLevelMinSelect.value = optionValueFromLevel(monsterFilterMin);
+    if (monsterLevelMaxSelect) monsterLevelMaxSelect.value = optionValueFromLevel(monsterFilterMax);
   }
 
   function handleMonsterLevelSelectChange(which) {
@@ -873,12 +864,6 @@ import {
   function isBossMonster(name) {
     const lvl = monsterLevel(name);
     return Number.isFinite(lvl) && lvl >= ZONE_BOSS_LEVEL;
-  }
-  function monsterDifficultyColor(level) {
-    if (!Number.isFinite(level)) return null;
-    const difficulty = zoneDifficultyStyle(level);
-    if (!difficulty) return null;
-    return difficulty.bg || difficulty.text || null;
   }
   function selectTopMonster(names) {
     if (!Array.isArray(names) || !names.length) return null;
@@ -1202,26 +1187,6 @@ import {
   }
 
   // -------- Zones (polygons + level badges) --------
-  const ZONE_BOSS_LEVEL = 105;
-  const ZONE_DIFFICULTY_STEPS = [
-    { limit: 20,  bg: '#4ade80', border: '#15803d', text: '#04210f' }, // entry
-    { limit: 40,  bg: '#a3e635', border: '#3f6212', text: '#1f2f0c' }, // low
-    { limit: 60,  bg: '#facc15', border: '#b45309', text: '#301d04' }, // mid
-    { limit: 80,  bg: '#f97316', border: '#c2410c', text: '#2b1003' }, // high
-    { limit: ZONE_BOSS_LEVEL - 1, bg: '#ef4444', border: '#991b1b', text: '#fff' }, // very high
-    { limit: Infinity, bg: '#b91c1c', border: '#7f1d1d', text: '#fff', skull: true } // bosses
-  ];
-
-  function formatZoneLevels(levels) {
-    if (!levels) return '';
-    const min = Number.isFinite(levels.min) ? levels.min : null;
-    const max = Number.isFinite(levels.max) ? levels.max : null;
-    if (min !== null && max !== null) return min === max ? `${min}` : `${min}-${max}`;
-    if (min !== null) return `${min}+`;
-    if (max !== null) return `≤${max}`;
-    return '';
-  }
-
   function centroidForRing(ring) {
     if (!Array.isArray(ring) || !ring.length) return null;
     let sx = 0, sy = 0, count = 0;
@@ -1232,22 +1197,6 @@ import {
       sx += x; sy += y; count++;
     }
     return count ? [sx / count, sy / count] : null;
-  }
-
-  function zoneMaxLevel(levels) {
-    if (!levels) return null;
-    const vals = [];
-    if (Number.isFinite(levels.min)) vals.push(levels.min);
-    if (Number.isFinite(levels.max)) vals.push(levels.max);
-    return vals.length ? Math.max(...vals) : null;
-  }
-
-  function zoneDifficultyStyle(level) {
-    if (!Number.isFinite(level)) return ZONE_DIFFICULTY_STEPS[0];
-    for (const step of ZONE_DIFFICULTY_STEPS) {
-      if (level <= step.limit) return step;
-    }
-    return ZONE_DIFFICULTY_STEPS[ZONE_DIFFICULTY_STEPS.length - 1];
   }
 
   function zoneLabelPoint(zone) {

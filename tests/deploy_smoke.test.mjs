@@ -40,7 +40,8 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
   const responses = new Map([
     ['https://example.test/map/', response(200, '<script type="module" src="./js/app.js"></script>')],
     ['https://example.test/map/js/config.js', response(200, 'export const DATA = {}; export const FLOORS = {};')],
-    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
+    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { buildSearchIndex } from './search-index.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
+    ['https://example.test/map/js/search-index.js', response(200, 'export function buildSearchIndex() {}')],
     ['https://example.test/map/js/layer-state.js', response(200, 'export function labelLayerKeyForSearchType() {} export function searchLabelMarkerState() {}')],
     ['https://example.test/map/js/monster-filter-state.js', response(200, 'export function monsterFilterStatusText() {} export function normalizeMonsterFilterExclusive() {} export function reconcileMonsterFilterState() {}')],
     ['https://example.test/map/js/url-state.js', response(200, 'export function searchTermFromUrlSearch() {} export function urlWithSearchTerm() {} export function coordinateTargetFromUrlSearch() {} export function normalizeCoordinateTarget() {}')],
@@ -58,6 +59,7 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     'module app script',
     'js/config.js',
     'js/app.js',
+    'js/search-index.js',
     'js/layer-state.js',
     'js/monster-filter-state.js',
     'js/url-state.js',
@@ -70,6 +72,7 @@ test('runDeploySmoke reports stale deployments', async () => {
     ['https://example.test/map/', response(200, '<script src="./js/app.js"></script>')],
     ['https://example.test/map/js/config.js', response(404, 'not found')],
     ['https://example.test/map/js/app.js', response(200, "const IMG_PATH = './img/Map_Combined.png';")],
+    ['https://example.test/map/js/search-index.js', response(404, 'not found')],
     ['https://example.test/map/js/layer-state.js', response(404, 'not found')],
     ['https://example.test/map/js/monster-filter-state.js', response(404, 'not found')],
     ['https://example.test/map/js/url-state.js', response(404, 'not found')],
@@ -84,7 +87,7 @@ test('runDeploySmoke reports stale deployments', async () => {
   assert.equal(result.ok, false);
   assert.deepEqual(
     result.checks.filter(check => !check.ok).map(check => check.name),
-    ['module app script', 'js/config.js', 'js/app.js', 'js/layer-state.js', 'js/monster-filter-state.js', 'js/url-state.js']
+    ['module app script', 'js/config.js', 'js/app.js', 'js/search-index.js', 'js/layer-state.js', 'js/monster-filter-state.js', 'js/url-state.js']
   );
 });
 

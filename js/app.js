@@ -41,6 +41,7 @@ import {
   findSearchSuggestions as findSearchSuggestionsInList,
   normalizeName
 } from './search-utils.js';
+import { buildSearchIndex as buildSearchItems } from './search-index.js';
 import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
@@ -704,42 +705,12 @@ import {
   }
 
   function buildSearchIndex() {
-    const items = [];
-
-    const add = (payload) => {
-      if (!payload || typeof payload.name !== 'string') return;
-      const normalized = normalizeName(payload.name);
-      if (!normalized) return;
-      items.push({ ...payload, normalized });
-    };
-
-    // Monsters
-    const monsterSeen = new Set();
-    if (encountersIndex?.size) {
-      for (const arr of encountersIndex.values()) {
-        if (!Array.isArray(arr)) continue;
-        for (const raw of arr) {
-          if (typeof raw !== 'string') continue;
-          const norm = normalizeName(raw);
-          if (!norm || monsterSeen.has(norm)) continue;
-          monsterSeen.add(norm);
-          add({ name: raw, type: 'monster', level: monsterLevel(raw) });
-        }
-      }
-    }
-
-    const addLabeledPoints = (arr, type) => {
-      for (const it of arr || []) {
-        const { name, x, y } = it || {};
-        if (typeof name !== 'string' || !Number.isFinite(x) || !Number.isFinite(y)) continue;
-        add({ name, x, y, type });
-      }
-    };
-
-    addLabeledPoints(Array.isArray(window.__townDataCache) ? window.__townDataCache : [], 'town');
-    addLabeledPoints(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [], 'poi');
-
-    searchItems = items.sort((a, b) => a.name.localeCompare(b.name));
+    searchItems = buildSearchItems({
+      encountersIndex,
+      towns: Array.isArray(window.__townDataCache) ? window.__townDataCache : [],
+      pois: Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [],
+      monsterLevelForName: monsterLevel
+    });
   }
 
   function monsterLevelFilterActive() {

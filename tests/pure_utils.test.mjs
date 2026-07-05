@@ -33,6 +33,7 @@ import {
   findSearchSuggestions,
   normalizeName
 } from '../js/search-utils.js';
+import { buildSearchIndex } from '../js/search-index.js';
 import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
@@ -102,6 +103,45 @@ test('search suggestions preserve ranking by match, type, floor, and name', () =
   assert.deepEqual(
     suggestions.map(entry => entry.name),
     ['Alpha Monster', 'Alpha Town', 'Alpha Mine', 'Alpha Shrine']
+  );
+});
+
+test('search index helper builds sorted monster, town, and poi entries', () => {
+  const encountersIndex = new Map([
+    ['1,1', ['Death Tyrant', 'Goblin', 'death tyrant', '', null]],
+    ['2,1', ['Wisp', 'Goblin']]
+  ]);
+  const towns = [
+    { name: 'Farmtown', x: 80, y: 120 },
+    { name: 'Broken Town', x: Number.NaN, y: 30 },
+    { name: '', x: 10, y: 30 }
+  ];
+  const pois = [
+    { name: 'Ancient Ruins', x: 4500, y: 310 },
+    { name: 'Bad POI', x: 10, y: Infinity }
+  ];
+  const levels = new Map([
+    ['death tyrant', 45],
+    ['goblin', 5],
+    ['wisp', 30]
+  ]);
+
+  const items = buildSearchIndex({
+    encountersIndex,
+    towns,
+    pois,
+    monsterLevelForName: name => levels.get(normalizeName(name)) ?? null
+  });
+
+  assert.deepEqual(
+    items.map(item => [item.name, item.type, item.normalized, item.level ?? null, item.x ?? null, item.y ?? null]),
+    [
+      ['Ancient Ruins', 'poi', 'ancient ruins', null, 4500, 310],
+      ['Death Tyrant', 'monster', 'death tyrant', 45, null, null],
+      ['Farmtown', 'town', 'farmtown', null, 80, 120],
+      ['Goblin', 'monster', 'goblin', 5, null, null],
+      ['Wisp', 'monster', 'wisp', 30, null, null]
+    ]
   );
 });
 

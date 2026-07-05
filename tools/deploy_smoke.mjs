@@ -56,6 +56,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/config\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./config.js');
   }
+  if (!/from\s+['"]\.\/search-index\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./search-index.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -79,6 +82,15 @@ export function validateLayerStateModule(source) {
   }
   if (!/\bexport\s+function\s+searchLabelMarkerState\b/.test(text)) {
     issues.push('js/layer-state.js did not contain searchLabelMarkerState');
+  }
+  return issues;
+}
+
+export function validateSearchIndexModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+buildSearchIndex\b/.test(text)) {
+    issues.push('js/search-index.js did not contain buildSearchIndex');
   }
   return issues;
 }
@@ -141,6 +153,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/app.js', [
     ...responseIssues(app),
     ...(app.ok ? validateAppModule(app.text) : [])
+  ]));
+
+  const searchIndex = await fetchText(fetchImpl, new URL('js/search-index.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/search-index.js', [
+    ...responseIssues(searchIndex),
+    ...(searchIndex.ok ? validateSearchIndexModule(searchIndex.text) : [])
   ]));
 
   const layerState = await fetchText(fetchImpl, new URL('js/layer-state.js', normalizedBaseUrl).href);

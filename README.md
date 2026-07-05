@@ -104,6 +104,12 @@ The elite-zone overlay is not part of the current validation path.
 
 ## Health Check
 
+Frontend helper unit tests can be run with:
+
+```powershell
+node --test tests\pure_utils.test.mjs
+```
+
 `tools\run_map_update_checks.py` is the one-command regression guard for future map updates. It verifies:
 
 - all Python map tools compile;

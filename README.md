@@ -102,13 +102,33 @@ The elite-zone overlay is not part of the current validation path.
 
 8. Commit and push the regenerated map plus any intentional manual overlay updates.
 
-## Health Check
+## Verification
+
+Run the full local check suite with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_all_checks.ps1
+```
 
 Frontend helper unit tests can be run with:
 
 ```powershell
 node --test tests\pure_utils.test.mjs
 ```
+
+After pushing to GitHub Pages, run the deployment smoke check with:
+
+```powershell
+node tools\deploy_smoke.mjs
+```
+
+To check a different static deployment URL, pass it as the first argument:
+
+```powershell
+node tools\deploy_smoke.mjs https://example.com/Project-Rogue-Map/
+```
+
+## Health Check
 
 `tools\run_map_update_checks.py` is the one-command regression guard for future map updates. It verifies:
 

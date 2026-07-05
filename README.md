@@ -134,7 +134,7 @@ After pushing to GitHub Pages, run the deployment smoke check with:
 node tools\deploy_smoke.mjs
 ```
 
-The `Live deploy smoke` GitHub Actions workflow also runs this check automatically after a successful GitHub Pages deployment, with retries for short CDN propagation delays. It can also be started manually from the Actions tab.
+The `Live deploy smoke` GitHub Actions workflow also runs this check automatically on `main` pushes, with retries for Pages/CDN propagation delays. It can also be started manually from the Actions tab.
 
 To check a different static deployment URL, pass it as the first argument:
 

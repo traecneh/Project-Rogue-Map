@@ -14,6 +14,8 @@ The map image is generated from local Project Rogue client data. The overlay JSO
 
 Frontend JavaScript uses native browser ES modules. There is no bundled build step; run the app through a static server rather than opening `index.html` directly from disk.
 
+GitHub Pages serves this as a static site. Keep the root `.nojekyll` file so Pages does not run Jekyll processing over the native ES module files.
+
 The extracted data directory must contain at least `map.json` and `tiles.json`. The renderer can also read the client atlas from `C:\Users\traec\Desktop\Project Rogue\Client\gf_json\tiles.json` when atlas-average experiments are needed, but the current live map uses the extracted tile RGB colors.
 
 For the exact future update sequence, use the [future update runbook](docs/future-update-runbook.md).

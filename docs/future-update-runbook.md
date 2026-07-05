@@ -10,6 +10,7 @@ Use this when Project Rogue ships a client update and the map needs to be regene
 - The extracted directory contains `map.json` and `tiles.json`.
 - Manual overlay JSON files stay manual unless you are intentionally updating known in-game locations by hand.
 - The elite-zone overlay is not part of the current validation path.
+- The repository root `.nojekyll` file must stay present because GitHub Pages serves this as a static native-ESM site.
 
 ## 1. Verify Inputs
 
@@ -114,4 +115,4 @@ Commit and push the regenerated map plus any intentional manual overlay edits. A
 node tools\deploy_smoke.mjs
 ```
 
-The smoke check should pass `index.html`, `module app script`, `js/config.js`, `js/app.js`, and `map image`.
+The smoke check should pass `index.html`, `module app script`, every checked `js/*.js` helper module, and `map image`.

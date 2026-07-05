@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 function readText(path) {
@@ -25,10 +25,20 @@ test('local checks workflow runs the repository-contained CI verification script
 
   assert.match(workflow, /runs-on:\s+windows-latest/);
   assert.match(workflow, /actions\/setup-node@v4/);
+  assert.match(workflow, /node-version:\s+'24'/);
   assert.match(workflow, /actions\/setup-python@v5/);
   assert.match(workflow, /tools\/run_ci_checks\.ps1/);
   assert.doesNotMatch(workflow, /run_all_checks\.ps1/);
   assert.doesNotMatch(workflow, /numpy pillow/);
+});
+
+test('static GitHub Pages deployment disables Jekyll processing', () => {
+  const readme = readText('README.md');
+  const runbook = readText('docs/future-update-runbook.md');
+
+  assert.equal(existsSync('.nojekyll'), true);
+  assert.match(readme, /\.nojekyll/);
+  assert.match(runbook, /\.nojekyll/);
 });
 
 test('ci checks do not require local extracted client data', () => {

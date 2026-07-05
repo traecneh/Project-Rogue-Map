@@ -115,4 +115,6 @@ Commit and push the regenerated map plus any intentional manual overlay edits. A
 node tools\deploy_smoke.mjs
 ```
 
+The `Live deploy smoke` GitHub Actions workflow runs the same check automatically after successful Pages deployments. Use the manual command above when you want immediate local confirmation or need to check a different URL.
+
 The smoke check should pass `index.html`, `module app script`, every checked `js/*.js` helper module, and `map image`.

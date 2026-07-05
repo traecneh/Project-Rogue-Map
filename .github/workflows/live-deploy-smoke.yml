@@ -1,0 +1,45 @@
+name: Live deploy smoke
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - pages build and deployment
+    branches:
+      - main
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-deploy-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Smoke GitHub Pages
+        shell: bash
+        run: |
+          for attempt in {1..12}; do
+            if node tools/deploy_smoke.mjs; then
+              exit 0
+            fi
+            echo "Live deployment smoke failed on attempt ${attempt}; retrying after CDN propagation wait."
+            sleep 10
+          done
+
+          node tools/deploy_smoke.mjs

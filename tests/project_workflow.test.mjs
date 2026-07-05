@@ -41,6 +41,25 @@ test('static GitHub Pages deployment disables Jekyll processing', () => {
   assert.match(runbook, /\.nojekyll/);
 });
 
+test('live deploy smoke workflow runs after successful Pages deployments', () => {
+  const workflow = readText('.github/workflows/live-deploy-smoke.yml');
+  const readme = readText('README.md');
+  const runbook = readText('docs/future-update-runbook.md');
+
+  assert.match(workflow, /name:\s+Live deploy smoke/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /workflow_run:/);
+  assert.match(workflow, /pages build and deployment/);
+  assert.match(workflow, /branches:\s*\n\s+- main/);
+  assert.match(workflow, /types:\s*\n\s+- completed/);
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch' \|\| github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /node-version:\s+'24'/);
+  assert.match(workflow, /node tools\/deploy_smoke\.mjs/);
+  assert.match(workflow, /sleep 10/);
+  assert.match(readme, /Live deploy smoke/);
+  assert.match(runbook, /Live deploy smoke/);
+});
+
 test('ci checks do not require local extracted client data', () => {
   const script = readText('tools/run_ci_checks.ps1');
 

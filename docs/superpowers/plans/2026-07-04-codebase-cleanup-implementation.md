@@ -802,7 +802,16 @@ git commit -m "Extract search utilities"
 Create `js/monster-utils.js` with exactly this content:
 
 ```js
-export const ZONE_BOSS_LEVEL = 50;
+export const ZONE_BOSS_LEVEL = 105;
+
+export const ZONE_DIFFICULTY_STEPS = [
+  { limit: 20,  bg: '#4ade80', border: '#15803d', text: '#04210f' },
+  { limit: 40,  bg: '#a3e635', border: '#3f6212', text: '#1f2f0c' },
+  { limit: 60,  bg: '#facc15', border: '#b45309', text: '#301d04' },
+  { limit: 80,  bg: '#f97316', border: '#c2410c', text: '#2b1003' },
+  { limit: ZONE_BOSS_LEVEL - 1, bg: '#ef4444', border: '#991b1b', text: '#fff' },
+  { limit: Infinity, bg: '#b91c1c', border: '#7f1d1d', text: '#fff', skull: true }
+];
 
 export function optionValueFromLevel(value) {
   return Number.isFinite(value) ? String(value) : '';
@@ -835,50 +844,42 @@ export function sortedMonsterLevelValues(monsterLevels) {
 export function enforceMonsterLevelRangeValues(min, max, whichChanged) {
   const hasMin = Number.isFinite(min);
   const hasMax = Number.isFinite(max);
-  if (!hasMin || !hasMax || min <= max) {
-    return { min, max };
-  }
-  if (whichChanged === 'min') {
-    return { min, max: min };
-  }
+  if (!hasMin || !hasMax) return { min, max };
+  if (min <= max) return { min, max };
+  if (whichChanged === 'min') return { min, max: min };
   return { min: max, max };
 }
 
 export function formatZoneLevels(levels) {
-  if (!levels || typeof levels !== 'object') return '';
-  const min = Number(levels.min);
-  const max = Number(levels.max);
-  if (Number.isFinite(min) && Number.isFinite(max)) {
-    return min === max ? String(min) : `${min}-${max}`;
-  }
-  if (Number.isFinite(min)) return `${min}+`;
-  if (Number.isFinite(max)) return `<=${max}`;
+  if (!levels) return '';
+  const min = Number.isFinite(levels.min) ? levels.min : null;
+  const max = Number.isFinite(levels.max) ? levels.max : null;
+  if (min !== null && max !== null) return min === max ? `${min}` : `${min}-${max}`;
+  if (min !== null) return `${min}+`;
+  if (max !== null) return `≤${max}`;
   return '';
 }
 
 export function zoneMaxLevel(levels) {
-  if (!levels || typeof levels !== 'object') return null;
-  const max = Number(levels.max);
-  if (Number.isFinite(max)) return max;
-  const min = Number(levels.min);
-  return Number.isFinite(min) ? min : null;
+  if (!levels) return null;
+  const vals = [];
+  if (Number.isFinite(levels.min)) vals.push(levels.min);
+  if (Number.isFinite(levels.max)) vals.push(levels.max);
+  return vals.length ? Math.max(...vals) : null;
 }
 
 export function zoneDifficultyStyle(level) {
-  if (!Number.isFinite(level)) return {};
-  if (level >= ZONE_BOSS_LEVEL) {
-    return { bg: '#7f1d1d', border: '#ef4444', text: '#fee2e2', skull: true };
+  if (!Number.isFinite(level)) return ZONE_DIFFICULTY_STEPS[0];
+  for (const step of ZONE_DIFFICULTY_STEPS) {
+    if (level <= step.limit) return step;
   }
-  if (level >= 40) return { bg: '#4c1d95', border: '#a855f7', text: '#f3e8ff' };
-  if (level >= 30) return { bg: '#7c2d12', border: '#fb923c', text: '#ffedd5' };
-  if (level >= 20) return { bg: '#713f12', border: '#facc15', text: '#fef9c3' };
-  if (level >= 10) return { bg: '#14532d', border: '#22c55e', text: '#dcfce7' };
-  return { bg: '#1e293b', border: '#64748b', text: '#e2e8f0' };
+  return ZONE_DIFFICULTY_STEPS[ZONE_DIFFICULTY_STEPS.length - 1];
 }
 
 export function monsterDifficultyColor(level) {
   if (!Number.isFinite(level)) return null;
   const difficulty = zoneDifficultyStyle(level);
+  if (!difficulty) return null;
   return difficulty.bg || difficulty.text || null;
 }
 ```

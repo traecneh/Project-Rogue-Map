@@ -100,7 +100,7 @@ Any fix outside the files being touched should be deferred unless it blocks the 
 Before and after the refactor, run:
 
 - `node --check js/app.js`;
-- `node tests/search_layer_regression.js`;
+- `node tests/search_layer_regression.mjs`;
 - `python -m unittest tests.test_run_map_update_checks`;
 - `python tools/run_map_update_checks.py`.
 

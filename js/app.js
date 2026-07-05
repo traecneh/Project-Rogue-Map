@@ -23,6 +23,18 @@ import {
   ZOOM_OUT_EXTRA
 } from './config.js';
 import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
+import {
+  clampFloorX as clampFloorXValue,
+  floorBounds as floorBoundsForConfig,
+  floorConfig as floorConfigForConfig,
+  floorForX as floorForXValue,
+  floorLabelForX as floorLabelForXValue,
+  floorLocalX as floorLocalXValue,
+  floorViewportBounds as floorViewportBoundsForConfig,
+  gameXYFromLatLng,
+  globalFloorX as globalFloorXValue,
+  mapLat as mapLatValue
+} from './coordinates.js';
 
 (() => {
 
@@ -245,7 +257,7 @@ import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
   let toLL = (x, y) => L.latLng(y, x);
 
   function mapLat(y) {
-    return INVERT_Y ? IMG_H - y : y;
+    return mapLatValue(y, IMG_H, INVERT_Y);
   }
 
   function toFloorLL(_floor, x, y) {
@@ -253,46 +265,51 @@ import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
   }
 
   function toGameXY(ll) {
-    const x = clamp(Math.round(ll.lng), 0, IMG_W);
-    const yTop = clamp(Math.round(ll.lat), 0, IMG_H);
-    return [x, INVERT_Y ? (IMG_H - yTop) : yTop];
+    return gameXYFromLatLng(ll, {
+      imageWidth: IMG_W,
+      imageHeight: IMG_H,
+      invertY: INVERT_Y,
+      clamp
+    });
   }
 
   function floorConfig(floor) {
-    return FLOORS[floor] || FLOORS.overworld;
+    return floorConfigForConfig(FLOORS, floor);
   }
 
   function floorForX(x) {
-    return Number.isFinite(x) && x >= FLOOR_WIDTH ? 'underground' : 'overworld';
+    return floorForXValue(x, FLOOR_WIDTH);
   }
 
   function floorLabelForX(x) {
-    return floorForX(x) === 'underground' ? 'UG' : 'OW';
+    return floorLabelForXValue(x, FLOOR_WIDTH);
   }
 
   function floorLocalX(x, floor = floorForX(x)) {
-    return x - floorConfig(floor).offset;
+    return floorLocalXValue(x, floor, FLOORS);
   }
 
   function globalFloorX(localX, floor) {
-    return floorConfig(floor).offset + localX;
+    return globalFloorXValue(localX, floor, FLOORS);
   }
 
   function clampFloorX(x, floor) {
-    const cfg = floorConfig(floor);
-    return clamp(x, cfg.minX, cfg.maxX - 1);
+    return clampFloorXValue(x, floor, FLOORS, clamp);
   }
 
   function floorBounds(floor) {
-    const cfg = floorConfig(floor);
-    return L.latLngBounds(toFloorLL(floor, cfg.minX, 0), toFloorLL(floor, cfg.maxX, IMG_H));
+    return floorBoundsForConfig(floor, FLOORS, IMG_H, toFloorLL, L.latLngBounds);
   }
 
   function floorViewportBounds(floor) {
-    const cfg = floorConfig(floor);
-    return L.latLngBounds(
-      toFloorLL(floor, cfg.minX - FLOOR_VIEW_PADDING_X, -FLOOR_VIEW_PADDING_Y),
-      toFloorLL(floor, cfg.maxX + FLOOR_VIEW_PADDING_X, IMG_H + FLOOR_VIEW_PADDING_Y)
+    return floorViewportBoundsForConfig(
+      floor,
+      FLOORS,
+      IMG_H,
+      toFloorLL,
+      L.latLngBounds,
+      FLOOR_VIEW_PADDING_X,
+      FLOOR_VIEW_PADDING_Y
     );
   }
 

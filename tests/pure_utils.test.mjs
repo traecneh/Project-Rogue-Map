@@ -42,6 +42,14 @@ import {
   normalizeMonsterFilterExclusive,
   reconcileMonsterFilterState
 } from '../js/monster-filter-state.js';
+import {
+  coordinateTargetFromUrlSearch,
+  parseCoordinateValue,
+  readQueryParam,
+  searchTermFromUrlSearch,
+  urlWithSearchTerm,
+  normalizeCoordinateTarget as normalizeUrlCoordinateTarget
+} from '../js/url-state.js';
 
 const FLOORS = {
   overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: 4096, offset: 0 },
@@ -94,6 +102,61 @@ test('search suggestions preserve ranking by match, type, floor, and name', () =
   assert.deepEqual(
     suggestions.map(entry => entry.name),
     ['Alpha Monster', 'Alpha Town', 'Alpha Mine', 'Alpha Shrine']
+  );
+});
+
+test('url helpers read and persist search query state without dropping unrelated params', () => {
+  assert.equal(searchTermFromUrlSearch('?q=Fallback&search=Death%20Tyrant'), 'Death Tyrant');
+  assert.equal(searchTermFromUrlSearch('?q=Fallback'), 'Fallback');
+  assert.equal(searchTermFromUrlSearch('?search=%20%20'), '');
+  assert.equal(readQueryParam(new URLSearchParams('x=&y=12'), ['x', 'y']), '12');
+
+  assert.equal(
+    urlWithSearchTerm({
+      pathname: '/Project-Rogue-Map/',
+      search: '?foo=1&q=Old&search=Old',
+      hash: '#map'
+    }, ' Death Tyrant '),
+    '/Project-Rogue-Map/?foo=1&search=Death+Tyrant#map'
+  );
+  assert.equal(
+    urlWithSearchTerm({
+      pathname: '/Project-Rogue-Map/',
+      search: '?foo=1&q=Old&search=Old',
+      hash: '#map'
+    }, ''),
+    '/Project-Rogue-Map/?foo=1#map'
+  );
+});
+
+test('url helpers parse and normalize coordinate deep links', () => {
+  assert.equal(parseCoordinateValue('12.6'), 13);
+  assert.equal(parseCoordinateValue('abc'), null);
+  assert.equal(parseCoordinateValue(''), null);
+  assert.deepEqual(coordinateTargetFromUrlSearch('?x=4096.2&y=25.7'), { x: 4096, y: 26 });
+  assert.equal(coordinateTargetFromUrlSearch('?x=10'), null);
+
+  assert.deepEqual(
+    normalizeUrlCoordinateTarget({
+      target: { x: 9000, y: -5 },
+      imageWidth: 8192,
+      imageHeight: 4096,
+      clamp,
+      floorForX: x => floorForX(x, 4096),
+      clampFloorX: (x, floor) => clampFloorX(x, floor, FLOORS, clamp)
+    }),
+    { x: 8191, y: 0 }
+  );
+  assert.equal(
+    normalizeUrlCoordinateTarget({
+      target: null,
+      imageWidth: 8192,
+      imageHeight: 4096,
+      clamp,
+      floorForX: x => floorForX(x, 4096),
+      clampFloorX: (x, floor) => clampFloorX(x, floor, FLOORS, clamp)
+    }),
+    null
   );
 });
 

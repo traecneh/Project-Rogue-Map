@@ -62,6 +62,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/monster-filter-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./monster-filter-state.js');
   }
+  if (!/from\s+['"]\.\/url-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./url-state.js');
+  }
   if (/\bconst\s+IMG_PATH\s*=/.test(text)) {
     issues.push('js/app.js still contains the old inline IMG_PATH constant');
   }
@@ -91,6 +94,24 @@ export function validateMonsterFilterStateModule(source) {
   }
   if (!/\bexport\s+function\s+reconcileMonsterFilterState\b/.test(text)) {
     issues.push('js/monster-filter-state.js did not contain reconcileMonsterFilterState');
+  }
+  return issues;
+}
+
+export function validateUrlStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+searchTermFromUrlSearch\b/.test(text)) {
+    issues.push('js/url-state.js did not contain searchTermFromUrlSearch');
+  }
+  if (!/\bexport\s+function\s+urlWithSearchTerm\b/.test(text)) {
+    issues.push('js/url-state.js did not contain urlWithSearchTerm');
+  }
+  if (!/\bexport\s+function\s+coordinateTargetFromUrlSearch\b/.test(text)) {
+    issues.push('js/url-state.js did not contain coordinateTargetFromUrlSearch');
+  }
+  if (!/\bexport\s+function\s+normalizeCoordinateTarget\b/.test(text)) {
+    issues.push('js/url-state.js did not contain normalizeCoordinateTarget');
   }
   return issues;
 }
@@ -132,6 +153,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/monster-filter-state.js', [
     ...responseIssues(monsterFilterState),
     ...(monsterFilterState.ok ? validateMonsterFilterStateModule(monsterFilterState.text) : [])
+  ]));
+
+  const urlState = await fetchText(fetchImpl, new URL('js/url-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/url-state.js', [
+    ...responseIssues(urlState),
+    ...(urlState.ok ? validateUrlStateModule(urlState.text) : [])
   ]));
 
   const mapImage = await fetchResource(fetchImpl, new URL('img/Map_Combined.png', normalizedBaseUrl).href);

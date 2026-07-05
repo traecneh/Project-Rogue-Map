@@ -51,6 +51,12 @@ import {
   reconcileMonsterFilterState
 } from './monster-filter-state.js';
 import {
+  coordinateTargetFromUrlSearch,
+  normalizeCoordinateTarget as normalizeCoordinateTargetValue,
+  searchTermFromUrlSearch,
+  urlWithSearchTerm
+} from './url-state.js';
+import {
   ZONE_BOSS_LEVEL,
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
@@ -156,65 +162,35 @@ import {
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
-  const SEARCH_PARAM_KEYS = ['search', 'q'];
-  const COORDINATE_X_PARAM_KEYS = ['x'];
-  const COORDINATE_Y_PARAM_KEYS = ['y'];
 
   function setPill(btn, on) { if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } }
   function isOn(btn)       { return !!btn && btn.classList.contains('on'); }
 
   function readSearchFromUrl() {
     if (typeof window === 'undefined') return '';
-    const params = new URLSearchParams(window.location.search);
-    for (const key of SEARCH_PARAM_KEYS) {
-      const val = params.get(key);
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    return '';
+    return searchTermFromUrlSearch(window.location.search);
   }
 
   function persistSearchToUrl(term) {
     if (typeof window === 'undefined' || !window.history?.replaceState) return;
-    const params = new URLSearchParams(window.location.search);
-    SEARCH_PARAM_KEYS.forEach(k => params.delete(k));
-    const clean = (term || '').trim();
-    if (clean) params.set(SEARCH_PARAM_KEYS[0], clean);
-    const qs = params.toString();
-    const next = `${window.location.pathname}${qs ? '?' + qs : ''}${window.location.hash || ''}`;
+    const next = urlWithSearchTerm(window.location, term);
     window.history.replaceState(null, '', next);
-  }
-
-  function readParamFromUrl(params, keys) {
-    if (!(params instanceof URLSearchParams)) return '';
-    for (const key of keys) {
-      const val = params.get(key);
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    return '';
-  }
-
-  function parseCoordinateValue(raw) {
-    if (typeof raw !== 'string' || !raw.trim()) return null;
-    const num = Number(raw.trim());
-    return Number.isFinite(num) ? Math.round(num) : null;
   }
 
   function readCoordinateTargetFromUrl() {
     if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    const x = parseCoordinateValue(readParamFromUrl(params, COORDINATE_X_PARAM_KEYS));
-    const y = parseCoordinateValue(readParamFromUrl(params, COORDINATE_Y_PARAM_KEYS));
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    return { x, y };
+    return coordinateTargetFromUrlSearch(window.location.search);
   }
 
   function normalizeCoordinateTarget(target) {
-    if (!target || !IMG_W || !IMG_H) return null;
-    const rawX = clamp(Math.round(target.x), 0, IMG_W);
-    const floor = floorForX(rawX);
-    const x = clampFloorX(rawX, floor);
-    const y = clamp(Math.round(target.y), 0, IMG_H);
-    return { x, y };
+    return normalizeCoordinateTargetValue({
+      target,
+      imageWidth: IMG_W,
+      imageHeight: IMG_H,
+      clamp,
+      floorForX,
+      clampFloorX
+    });
   }
 
   function nameIcon(innerHtml)  {

@@ -37,6 +37,7 @@ $jsFiles = @(
   'js\monster-filter-state.js',
   'js\monster-utils.js',
   'js\search-utils.js',
+  'js\url-state.js',
   'tools\deploy_smoke.mjs',
   'tests\deploy_smoke.test.mjs',
   'tests\project_workflow.test.mjs',

@@ -33,6 +33,10 @@ import {
   findSearchSuggestions,
   normalizeName
 } from '../js/search-utils.js';
+import {
+  labelLayerKeyForSearchType,
+  searchLabelMarkerState
+} from '../js/layer-state.js';
 
 const FLOORS = {
   overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: 4096, offset: 0 },
@@ -85,6 +89,48 @@ test('search suggestions preserve ranking by match, type, floor, and name', () =
   assert.deepEqual(
     suggestions.map(entry => entry.name),
     ['Alpha Monster', 'Alpha Town', 'Alpha Mine', 'Alpha Shrine']
+  );
+});
+
+test('search layer helpers keep monster searches from hiding enabled labels', () => {
+  assert.equal(labelLayerKeyForSearchType('town'), 'towns');
+  assert.equal(labelLayerKeyForSearchType('poi'), 'pois');
+  assert.equal(labelLayerKeyForSearchType('monster'), null);
+  assert.equal(labelLayerKeyForSearchType(null), null);
+
+  const townSearch = createSearchRegex('Farmtown', true);
+  assert.deepEqual(
+    searchLabelMarkerState({
+      labelText: 'Farmtown',
+      searchRegex: townSearch,
+      activeSearchType: 'town'
+    }),
+    { matches: true, hidden: false }
+  );
+  assert.deepEqual(
+    searchLabelMarkerState({
+      labelText: 'Ancient Ruins',
+      searchRegex: townSearch,
+      activeSearchType: 'town'
+    }),
+    { matches: false, hidden: true }
+  );
+
+  assert.deepEqual(
+    searchLabelMarkerState({
+      labelText: 'Farmtown',
+      searchRegex: createSearchRegex('Death Tyrant', true),
+      activeSearchType: 'monster'
+    }),
+    { matches: false, hidden: false }
+  );
+  assert.deepEqual(
+    searchLabelMarkerState({
+      labelText: 'Farmtown',
+      searchRegex: null,
+      activeSearchType: null
+    }),
+    { matches: false, hidden: false }
   );
 });
 

@@ -56,8 +56,23 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/config\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./config.js');
   }
+  if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./layer-state.js');
+  }
   if (/\bconst\s+IMG_PATH\s*=/.test(text)) {
     issues.push('js/app.js still contains the old inline IMG_PATH constant');
+  }
+  return issues;
+}
+
+export function validateLayerStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+labelLayerKeyForSearchType\b/.test(text)) {
+    issues.push('js/layer-state.js did not contain labelLayerKeyForSearchType');
+  }
+  if (!/\bexport\s+function\s+searchLabelMarkerState\b/.test(text)) {
+    issues.push('js/layer-state.js did not contain searchLabelMarkerState');
   }
   return issues;
 }
@@ -87,6 +102,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/app.js', [
     ...responseIssues(app),
     ...(app.ok ? validateAppModule(app.text) : [])
+  ]));
+
+  const layerState = await fetchText(fetchImpl, new URL('js/layer-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/layer-state.js', [
+    ...responseIssues(layerState),
+    ...(layerState.ok ? validateLayerStateModule(layerState.text) : [])
   ]));
 
   const mapImage = await fetchResource(fetchImpl, new URL('img/Map_Combined.png', normalizedBaseUrl).href);

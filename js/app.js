@@ -42,6 +42,10 @@ import {
   normalizeName
 } from './search-utils.js';
 import {
+  labelLayerKeyForSearchType,
+  searchLabelMarkerState
+} from './layer-state.js';
+import {
   ZONE_BOSS_LEVEL,
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
@@ -1416,9 +1420,10 @@ import {
   }
 
   function ensureLabelLayerOn(type) {
-    if (type === 'town') {
+    const layerKey = labelLayerKeyForSearchType(type);
+    if (layerKey === 'towns') {
       if (!isOn(pillTowns)) { setPill(pillTowns, true); setLayerVisible(towns, true); }
-    } else if (type === 'poi') {
+    } else if (layerKey === 'pois') {
       if (!isOn(pillPois)) { setPill(pillPois, true); setLayerVisible(poisFG, true); }
     }
   }
@@ -1473,19 +1478,21 @@ import {
       if (layer.setZIndexOffset) layer.setZIndexOffset(0);
     }));
 
-    if (currentSearchRegex && activeSearchType !== 'monster') {
-      markerGroups.forEach(g => g.eachLayer(layer => {
-        const el = layer.getElement && layer.getElement(); if (!el) return;
-        const span = el.querySelector('span.n'); if (!span) return;
-        const ok = currentSearchRegex.test(span.textContent || '');
-        if (ok) {
-          span.classList.add('match');
-          if (layer.setZIndexOffset) layer.setZIndexOffset(MATCH_ZINDEX_OFFSET);
-        } else {
-          el.style.display = 'none';
-        }
-      }));
-    }
+    markerGroups.forEach(g => g.eachLayer(layer => {
+      const el = layer.getElement && layer.getElement(); if (!el) return;
+      const span = el.querySelector('span.n'); if (!span) return;
+      const markerState = searchLabelMarkerState({
+        labelText: span.textContent || '',
+        searchRegex: currentSearchRegex,
+        activeSearchType
+      });
+      if (markerState.matches) {
+        span.classList.add('match');
+        if (layer.setZIndexOffset) layer.setZIndexOffset(MATCH_ZINDEX_OFFSET);
+      } else if (markerState.hidden) {
+        el.style.display = 'none';
+      }
+    }));
 
     refreshChunkLayer();
     rerunCollision();

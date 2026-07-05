@@ -33,6 +33,7 @@ $jsFiles = @(
   'js\chunk-label-state.js',
   'js\config.js',
   'js\coordinates.js',
+  'js\data-normalization.js',
   'js\dom-utils.js',
   'js\layer-state.js',
   'js\monster-filter-state.js',

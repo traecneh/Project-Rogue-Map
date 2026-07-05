@@ -65,6 +65,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/search-focus-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./search-focus-state.js');
   }
+  if (!/from\s+['"]\.\/data-normalization\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./data-normalization.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -134,6 +137,22 @@ export function validateSearchFocusStateModule(source) {
   return issues;
 }
 
+export function validateDataNormalizationModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  for (const name of [
+    'normalizeTownList',
+    'normalizePoiList',
+    'normalizeEncounterIndex',
+    'normalizeMonsterLevels'
+  ]) {
+    if (!new RegExp(`\\bexport\\s+function\\s+${name}\\b`).test(text)) {
+      issues.push(`js/data-normalization.js did not contain ${name}`);
+    }
+  }
+  return issues;
+}
+
 export function validateMonsterFilterStateModule(source) {
   const text = String(source || '');
   const issues = [];
@@ -192,6 +211,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/app.js', [
     ...responseIssues(app),
     ...(app.ok ? validateAppModule(app.text) : [])
+  ]));
+
+  const dataNormalization = await fetchText(fetchImpl, new URL('js/data-normalization.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/data-normalization.js', [
+    ...responseIssues(dataNormalization),
+    ...(dataNormalization.ok ? validateDataNormalizationModule(dataNormalization.text) : [])
   ]));
 
   const searchIndex = await fetchText(fetchImpl, new URL('js/search-index.js', normalizedBaseUrl).href);

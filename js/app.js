@@ -69,6 +69,16 @@ import {
   urlWithSearchTerm
 } from './url-state.js';
 import {
+  normalizeCaveList,
+  normalizeCrimList,
+  normalizeEncounterIndex,
+  normalizeMonsterLevels,
+  normalizePoiList,
+  normalizePortalList,
+  normalizeTownList,
+  normalizeZoneList
+} from './data-normalization.js';
+import {
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
   monsterDifficultyColor,
@@ -1544,7 +1554,7 @@ import {
       fetch(DATA.monsterLvls).then(r => r.ok ? r.json() : null).catch(() => null)
     ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson, monsterLvlJson]) => {
       // Towns (ON by default)
-      window.__townDataCache = Array.isArray(ts) ? ts : [];
+      window.__townDataCache = normalizeTownList(ts);
       for (const it of window.__townDataCache) {
         const { name, x, y } = it || {};
         if (typeof x !== 'number' || typeof y !== 'number' || !name) continue;
@@ -1552,42 +1562,26 @@ import {
       }
 
       // Portals (build once; layers OFF until toggled)
-      renderPortals(portalsJson);
+      renderPortals(normalizePortalList(portalsJson));
 
       // Encounters (Monsters)
-      if (enc && typeof enc === 'object') {
-        encountersIndex = new Map(Object.entries(enc));
-      }
+      encountersIndex = normalizeEncounterIndex(enc);
 
       // Caves (build once; layer OFF until toggled)
-      if (Array.isArray(caves)) renderCaves(caves);
-      else if (caves && typeof caves === 'object' && Array.isArray(caves.items)) renderCaves(caves.items);
+      renderCaves(normalizeCaveList(caves));
 
       // Zones (build once; layer OFF until toggled)
-      const zoneList = Array.isArray(zonesJson?.zones) ? zonesJson.zones
-        : (Array.isArray(zonesJson) ? zonesJson : null);
-      if (zoneList) renderZones(zoneList);
+      renderZones(normalizeZoneList(zonesJson));
 
       // POIs (build once; layer OFF until toggled)
-      window.__poiDataCache = Array.isArray(poisJson) ? poisJson : [];
+      window.__poiDataCache = normalizePoiList(poisJson);
       renderPois(window.__poiDataCache);
 
       // Crim spawns
-      if (Array.isArray(crimJson)) renderCrimSpawns(crimJson);
+      renderCrimSpawns(normalizeCrimList(crimJson));
 
       // Monster levels lookup
-      if (monsterLvlJson && typeof monsterLvlJson === 'object') {
-        monsterLevels = new Map();
-        for (const [name, lvl] of Object.entries(monsterLvlJson)) {
-          const normalized = normalizeName(name);
-          if (!normalized) continue;
-          const num = Number(lvl);
-          if (!Number.isFinite(num)) continue;
-          monsterLevels.set(normalized, num);
-        }
-      } else {
-        monsterLevels = null;
-      }
+      monsterLevels = normalizeMonsterLevels(monsterLvlJson);
       updateMonsterLevelSelectOptions();
       buildSearchIndex();
       if (searchInput && searchInput.value.trim() && document.activeElement === searchInput) {

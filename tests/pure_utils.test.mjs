@@ -63,6 +63,16 @@ import {
   urlWithSearchTerm,
   normalizeCoordinateTarget as normalizeUrlCoordinateTarget
 } from '../js/url-state.js';
+import {
+  normalizeCaveList,
+  normalizeCrimList,
+  normalizeEncounterIndex,
+  normalizeMonsterLevels,
+  normalizePoiList,
+  normalizePortalList,
+  normalizeTownList,
+  normalizeZoneList
+} from '../js/data-normalization.js';
 
 const FLOORS = {
   overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: 4096, offset: 0 },
@@ -70,6 +80,57 @@ const FLOORS = {
 };
 
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
+
+test('data normalization helpers preserve known array payloads and wrappers', () => {
+  const towns = [{ name: 'Farmtown', x: 80, y: 120 }, { name: '', x: Number.NaN }];
+  const pois = [{ name: 'Ancient Ruins', x: 4500, y: 310 }];
+  const portals = [{ x1: 1, y1: 2, x2: 3, y2: 4 }];
+  const caves = [{ entry: { x: 1, y: 2 }, exit: { x: 3, y: 4 } }];
+  const zones = [{ levels: { min: 1, max: 2 } }];
+  const crim = [{ name: 'Crim', x: 5, y: 6 }];
+
+  assert.equal(normalizeTownList(towns), towns);
+  assert.equal(normalizePoiList(pois), pois);
+  assert.equal(normalizePortalList(portals), portals);
+  assert.equal(normalizeCrimList(crim), crim);
+  assert.deepEqual(normalizeTownList(null), []);
+  assert.deepEqual(normalizePoiList({ items: pois }), []);
+  assert.deepEqual(normalizeCaveList({ items: caves }), caves);
+  assert.deepEqual(normalizeCaveList(caves), caves);
+  assert.deepEqual(normalizeCaveList({ items: null }), []);
+  assert.deepEqual(normalizeZoneList({ zones }), zones);
+  assert.deepEqual(normalizeZoneList(zones), zones);
+  assert.deepEqual(normalizeZoneList({ zones: null }), []);
+});
+
+test('data normalization helpers build encounter and monster level maps', () => {
+  const encounters = normalizeEncounterIndex({
+    '1,2': ['Death Tyrant', 'Wisp'],
+    '3,4': 'not-an-array'
+  });
+  assert.ok(encounters instanceof Map);
+  assert.deepEqual(Array.from(encounters.entries()), [
+    ['1,2', ['Death Tyrant', 'Wisp']],
+    ['3,4', 'not-an-array']
+  ]);
+  assert.equal(normalizeEncounterIndex(null), null);
+  assert.equal(normalizeEncounterIndex(['bad']), null);
+
+  const levels = normalizeMonsterLevels({
+    ' Death Tyrant ': '105',
+    Wisp: 30,
+    Goblin: 'bad',
+    '': 1,
+    Infinite: Infinity
+  });
+  assert.ok(levels instanceof Map);
+  assert.deepEqual(Array.from(levels.entries()), [
+    ['death tyrant', 105],
+    ['wisp', 30]
+  ]);
+  assert.equal(normalizeMonsterLevels(null), null);
+  assert.equal(normalizeMonsterLevels(['bad']), null);
+});
 
 test('search helpers normalize, escape, and match names safely', () => {
   assert.equal(normalizeName('  Death Tyrant  '), 'death tyrant');

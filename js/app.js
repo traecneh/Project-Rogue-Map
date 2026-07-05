@@ -35,6 +35,12 @@ import {
   globalFloorX as globalFloorXValue,
   mapLat as mapLatValue
 } from './coordinates.js';
+import {
+  createSearchRegex,
+  findSearchEntryByName as findSearchEntryInList,
+  findSearchSuggestions as findSearchSuggestionsInList,
+  normalizeName
+} from './search-utils.js';
 
 (() => {
 
@@ -693,10 +699,9 @@ import {
     return currentSearchRegex ? names.filter(n => currentSearchRegex.test(n)) : names;
   }
 
-  const normalizeMonsterName = name => (name || '').trim().toLowerCase();
   function monsterLevel(name) {
     if (!monsterLevels) return null;
-    const lvl = monsterLevels.get(normalizeMonsterName(name));
+    const lvl = monsterLevels.get(normalizeName(name));
     return Number.isFinite(lvl) ? lvl : null;
   }
 
@@ -705,7 +710,7 @@ import {
 
     const add = (payload) => {
       if (!payload || typeof payload.name !== 'string') return;
-      const normalized = normalizeMonsterName(payload.name);
+      const normalized = normalizeName(payload.name);
       if (!normalized) return;
       items.push({ ...payload, normalized });
     };
@@ -717,7 +722,7 @@ import {
         if (!Array.isArray(arr)) continue;
         for (const raw of arr) {
           if (typeof raw !== 'string') continue;
-          const norm = normalizeMonsterName(raw);
+          const norm = normalizeName(raw);
           if (!norm || monsterSeen.has(norm)) continue;
           monsterSeen.add(norm);
           add({ name: raw, type: 'monster', level: monsterLevel(raw) });
@@ -1395,25 +1400,14 @@ import {
   }
 
   function findSearchSuggestions(term) {
-    const clean = (term || '').trim().toLowerCase();
-    if (!clean) return [];
-    const matches = [];
-    for (const entry of searchItems) {
-      const idx = entry.normalized.indexOf(clean);
-      if (idx === -1) continue;
-      matches.push({ entry, idx });
-    }
-    matches.sort((a, b) => {
-      if (a.idx !== b.idx) return a.idx - b.idx;
-      const ta = Number.isFinite(SEARCH_TYPE_ORDER[a.entry.type]) ? SEARCH_TYPE_ORDER[a.entry.type] : 99;
-      const tb = Number.isFinite(SEARCH_TYPE_ORDER[b.entry.type]) ? SEARCH_TYPE_ORDER[b.entry.type] : 99;
-      if (ta !== tb) return ta - tb;
-      const fa = Number.isFinite(a.entry.x) ? (floorForX(a.entry.x) === currentFloor ? 0 : 1) : 0;
-      const fb = Number.isFinite(b.entry.x) ? (floorForX(b.entry.x) === currentFloor ? 0 : 1) : 0;
-      if (fa !== fb) return fa - fb;
-      return a.entry.name.localeCompare(b.entry.name);
+    return findSearchSuggestionsInList({
+      term,
+      searchItems,
+      currentFloor,
+      floorForX,
+      searchTypeOrder: SEARCH_TYPE_ORDER,
+      limit: SEARCH_SUGGESTION_LIMIT
     });
-    return matches.slice(0, SEARCH_SUGGESTION_LIMIT).map(m => m.entry);
   }
 
   function renderSearchSuggestions(entries) {
@@ -1460,9 +1454,7 @@ import {
   }
 
   function findSearchEntryByName(name) {
-    const norm = normalizeMonsterName(name);
-    if (!norm) return null;
-    return searchItems.find(it => it.normalized === norm) || null;
+    return findSearchEntryInList(searchItems, name);
   }
 
   function activeSearchTypeForRun(term, exact) {
@@ -1518,10 +1510,7 @@ import {
   function runSearch(exact = false) {
     const q = (searchInput?.value || '').trim();
     persistSearchToUrl(q);
-    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    currentSearchRegex = q
-      ? new RegExp(exact ? `^${escaped}$` : escaped, 'i')
-      : null;
+    currentSearchRegex = createSearchRegex(q, exact);
     if (!currentSearchRegex) currentSearchType = null;
     const activeSearchType = activeSearchTypeForRun(q, exact);
 
@@ -1751,7 +1740,7 @@ import {
       if (monsterLvlJson && typeof monsterLvlJson === 'object') {
         monsterLevels = new Map();
         for (const [name, lvl] of Object.entries(monsterLvlJson)) {
-          const normalized = normalizeMonsterName(name);
+          const normalized = normalizeName(name);
           if (!normalized) continue;
           const num = Number(lvl);
           if (!Number.isFinite(num)) continue;

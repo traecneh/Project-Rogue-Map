@@ -46,6 +46,11 @@ import {
   searchLabelMarkerState
 } from './layer-state.js';
 import {
+  monsterFilterStatusText,
+  normalizeMonsterFilterExclusive,
+  reconcileMonsterFilterState
+} from './monster-filter-state.js';
+import {
   ZONE_BOSS_LEVEL,
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
@@ -777,7 +782,7 @@ import {
   }
 
   function setMonsterLevelExclusive(next) {
-    const normalized = !!next && monsterLevelValues.length > 0;
+    const normalized = normalizeMonsterFilterExclusive(next, monsterLevelValues);
     if (monsterFilterExclusive === normalized) {
       syncMonsterLevelExclusiveBtn();
       updateMonsterLevelFilterStatus();
@@ -792,8 +797,16 @@ import {
   function updateMonsterLevelSelectOptions() {
     const levels = sortedMonsterLevelValues(monsterLevels);
     monsterLevelValues = levels;
-    if (!monsterLevelValues.includes(monsterFilterMin)) monsterFilterMin = null;
-    if (!monsterLevelValues.includes(monsterFilterMax)) monsterFilterMax = null;
+    const previousExclusive = monsterFilterExclusive;
+    const nextState = reconcileMonsterFilterState({
+      levelValues: monsterLevelValues,
+      min: monsterFilterMin,
+      max: monsterFilterMax,
+      exclusive: monsterFilterExclusive
+    });
+    monsterFilterMin = nextState.min;
+    monsterFilterMax = nextState.max;
+    monsterFilterExclusive = nextState.exclusive;
     const html = ['<option value="">Any</option>', ...monsterLevelValues.map(lvl => `<option value="${lvl}">${lvl}</option>`)].join('');
     if (monsterLevelMinSelect) {
       monsterLevelMinSelect.innerHTML = html;
@@ -808,42 +821,24 @@ import {
     if (monsterLevelExclusiveBtn) {
       monsterLevelExclusiveBtn.disabled = monsterLevelValues.length === 0;
     }
-    if (!monsterLevelValues.length && monsterFilterExclusive) {
-      setMonsterLevelExclusive(false);
-    } else {
-      syncMonsterLevelExclusiveBtn();
-      updateMonsterLevelFilterStatus();
-    }
+    syncMonsterLevelExclusiveBtn();
+    updateMonsterLevelFilterStatus();
+    if (previousExclusive !== monsterFilterExclusive && isOn(pillMonsters)) refreshChunkLayer();
   }
 
   function updateMonsterLevelFilterStatus() {
     if (!monsterLevelFilterStatus) return;
-    if (!monsterLevelValues.length) {
-      monsterLevelFilterStatus.textContent = MONSTER_FILTER_HINT_UNAVAILABLE;
-      return;
-    }
-    if (!monsterLevelFilterActive()) {
-      monsterLevelFilterStatus.textContent = monsterFilterExclusive
-        ? MONSTER_FILTER_HINT_NEED_RANGE
-        : MONSTER_FILTER_HINT_DEFAULT;
-      return;
-    }
-    const hasMin = Number.isFinite(monsterFilterMin);
-    const hasMax = Number.isFinite(monsterFilterMax);
-    let text = '';
-    if (hasMin && hasMax) {
-      text = monsterFilterMin === monsterFilterMax
-        ? `Filtering level ${monsterFilterMin}`
-        : `Filtering levels ${monsterFilterMin} to ${monsterFilterMax}`;
-    } else if (hasMin) {
-      text = `Filtering levels ${monsterFilterMin}+`;
-    } else if (hasMax) {
-      text = `Filtering levels up to ${monsterFilterMax}`;
-    }
-    if (monsterFilterExclusive) {
-      text = text ? `${text} · Exclusive` : 'Exclusive';
-    }
-    monsterLevelFilterStatus.textContent = text || MONSTER_FILTER_HINT_DEFAULT;
+    monsterLevelFilterStatus.textContent = monsterFilterStatusText({
+      levelValues: monsterLevelValues,
+      min: monsterFilterMin,
+      max: monsterFilterMax,
+      exclusive: monsterFilterExclusive,
+      hints: {
+        default: MONSTER_FILTER_HINT_DEFAULT,
+        unavailable: MONSTER_FILTER_HINT_UNAVAILABLE,
+        needRange: MONSTER_FILTER_HINT_NEED_RANGE
+      }
+    });
   }
 
   function enforceMonsterLevelRange(whichChanged) {

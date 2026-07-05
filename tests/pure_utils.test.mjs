@@ -37,6 +37,11 @@ import {
   labelLayerKeyForSearchType,
   searchLabelMarkerState
 } from '../js/layer-state.js';
+import {
+  monsterFilterStatusText,
+  normalizeMonsterFilterExclusive,
+  reconcileMonsterFilterState
+} from '../js/monster-filter-state.js';
 
 const FLOORS = {
   overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: 4096, offset: 0 },
@@ -159,6 +164,47 @@ test('monster helpers parse, sort, filter, and enforce ranges', () => {
   assert.deepEqual(enforceMonsterLevelRangeValues(40, 20, 'min'), { min: 40, max: 40 });
   assert.deepEqual(enforceMonsterLevelRangeValues(40, 20, 'max'), { min: 20, max: 20 });
   assert.deepEqual(enforceMonsterLevelRangeValues(10, 20, 'min'), { min: 10, max: 20 });
+});
+
+test('monster filter state helpers normalize exclusive mode and stale level values', () => {
+  assert.equal(normalizeMonsterFilterExclusive(true, [10, 20]), true);
+  assert.equal(normalizeMonsterFilterExclusive(true, []), false);
+  assert.equal(normalizeMonsterFilterExclusive(false, [10, 20]), false);
+
+  assert.deepEqual(
+    reconcileMonsterFilterState({
+      levelValues: [10, 20, 30],
+      min: 20,
+      max: 40,
+      exclusive: true
+    }),
+    { min: 20, max: null, exclusive: true }
+  );
+  assert.deepEqual(
+    reconcileMonsterFilterState({
+      levelValues: [],
+      min: 20,
+      max: 30,
+      exclusive: true
+    }),
+    { min: null, max: null, exclusive: false }
+  );
+});
+
+test('monster filter status text covers unavailable, default, ranges, and exclusive mode', () => {
+  const hints = {
+    default: 'Showing all levels. Set min/max to filter.',
+    unavailable: 'Monster level data unavailable.',
+    needRange: 'Set min/max to use Exclusive mode.'
+  };
+
+  assert.equal(monsterFilterStatusText({ levelValues: [], min: null, max: null, exclusive: false, hints }), hints.unavailable);
+  assert.equal(monsterFilterStatusText({ levelValues: [10], min: null, max: null, exclusive: false, hints }), hints.default);
+  assert.equal(monsterFilterStatusText({ levelValues: [10], min: null, max: null, exclusive: true, hints }), hints.needRange);
+  assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: 10, max: 20, exclusive: false, hints }), 'Filtering levels 10 to 20');
+  assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: 10, max: 10, exclusive: false, hints }), 'Filtering level 10');
+  assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: 10, max: null, exclusive: false, hints }), 'Filtering levels 10+');
+  assert.equal(monsterFilterStatusText({ levelValues: [10, 20], min: null, max: 20, exclusive: true, hints }), 'Filtering levels up to 20 · Exclusive');
 });
 
 test('zone helpers preserve current level formatting and difficulty thresholds', () => {

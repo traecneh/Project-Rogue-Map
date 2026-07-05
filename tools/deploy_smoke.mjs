@@ -59,6 +59,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
+  if (!/from\s+['"]\.\/monster-filter-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./monster-filter-state.js');
+  }
   if (/\bconst\s+IMG_PATH\s*=/.test(text)) {
     issues.push('js/app.js still contains the old inline IMG_PATH constant');
   }
@@ -73,6 +76,21 @@ export function validateLayerStateModule(source) {
   }
   if (!/\bexport\s+function\s+searchLabelMarkerState\b/.test(text)) {
     issues.push('js/layer-state.js did not contain searchLabelMarkerState');
+  }
+  return issues;
+}
+
+export function validateMonsterFilterStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  if (!/\bexport\s+function\s+monsterFilterStatusText\b/.test(text)) {
+    issues.push('js/monster-filter-state.js did not contain monsterFilterStatusText');
+  }
+  if (!/\bexport\s+function\s+normalizeMonsterFilterExclusive\b/.test(text)) {
+    issues.push('js/monster-filter-state.js did not contain normalizeMonsterFilterExclusive');
+  }
+  if (!/\bexport\s+function\s+reconcileMonsterFilterState\b/.test(text)) {
+    issues.push('js/monster-filter-state.js did not contain reconcileMonsterFilterState');
   }
   return issues;
 }
@@ -108,6 +126,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/layer-state.js', [
     ...responseIssues(layerState),
     ...(layerState.ok ? validateLayerStateModule(layerState.text) : [])
+  ]));
+
+  const monsterFilterState = await fetchText(fetchImpl, new URL('js/monster-filter-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/monster-filter-state.js', [
+    ...responseIssues(monsterFilterState),
+    ...(monsterFilterState.ok ? validateMonsterFilterStateModule(monsterFilterState.text) : [])
   ]));
 
   const mapImage = await fetchResource(fetchImpl, new URL('img/Map_Combined.png', normalizedBaseUrl).href);

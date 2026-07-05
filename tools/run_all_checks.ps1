@@ -34,6 +34,7 @@ $jsFiles = @(
   'js\coordinates.js',
   'js\dom-utils.js',
   'js\layer-state.js',
+  'js\monster-filter-state.js',
   'js\monster-utils.js',
   'js\search-utils.js',
   'tools\deploy_smoke.mjs',

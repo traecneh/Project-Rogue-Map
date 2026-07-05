@@ -38,6 +38,7 @@ $jsFiles = @(
   'js\layer-state.js',
   'js\monster-filter-state.js',
   'js\monster-utils.js',
+  'js\portal-state.js',
   'js\search-focus-state.js',
   'js\search-index.js',
   'js\search-utils.js',

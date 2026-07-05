@@ -68,6 +68,9 @@ export function validateAppModule(source) {
   if (!/from\s+['"]\.\/data-normalization\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./data-normalization.js');
   }
+  if (!/from\s+['"]\.\/portal-state\.js['"]/.test(text)) {
+    issues.push('js/app.js did not import ./portal-state.js');
+  }
   if (!/from\s+['"]\.\/layer-state\.js['"]/.test(text)) {
     issues.push('js/app.js did not import ./layer-state.js');
   }
@@ -153,6 +156,21 @@ export function validateDataNormalizationModule(source) {
   return issues;
 }
 
+export function validatePortalStateModule(source) {
+  const text = String(source || '');
+  const issues = [];
+  for (const name of [
+    'portalEndpoints',
+    'isPortalLabelItem',
+    'splitPortalItems'
+  ]) {
+    if (!new RegExp(`\\bexport\\s+function\\s+${name}\\b`).test(text)) {
+      issues.push(`js/portal-state.js did not contain ${name}`);
+    }
+  }
+  return issues;
+}
+
 export function validateMonsterFilterStateModule(source) {
   const text = String(source || '');
   const issues = [];
@@ -217,6 +235,12 @@ export async function runDeploySmoke({
   checks.push(buildCheckResult('js/data-normalization.js', [
     ...responseIssues(dataNormalization),
     ...(dataNormalization.ok ? validateDataNormalizationModule(dataNormalization.text) : [])
+  ]));
+
+  const portalState = await fetchText(fetchImpl, new URL('js/portal-state.js', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('js/portal-state.js', [
+    ...responseIssues(portalState),
+    ...(portalState.ok ? validatePortalStateModule(portalState.text) : [])
   ]));
 
   const searchIndex = await fetchText(fetchImpl, new URL('js/search-index.js', normalizedBaseUrl).href);

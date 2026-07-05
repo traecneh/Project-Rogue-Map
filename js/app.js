@@ -79,6 +79,11 @@ import {
   normalizeZoneList
 } from './data-normalization.js';
 import {
+  isPortalLabelItem,
+  portalEndpoints,
+  splitPortalItems
+} from './portal-state.js';
+import {
   enforceMonsterLevelRangeValues,
   formatZoneLevels,
   monsterDifficultyColor,
@@ -1023,16 +1028,6 @@ import {
   // -------- Portals (paired markers + labels) --------
   let portalLabelItems = [];
 
-  function getEndpoints(o) {
-    if (o && o.entry && o.exit) return [o.entry.x, o.entry.y, o.exit.x, o.exit.y];
-    if (o && o.from  && o.to)   return [o.from.x,  o.from.y,  o.to.x,   o.to.y];
-    if (o && o.a     && o.b)    return [o.a.x,     o.a.y,     o.b.x,    o.b.y];
-    if (o && Number.isFinite(o.x1) && Number.isFinite(o.y1) &&
-             Number.isFinite(o.x2) && Number.isFinite(o.y2)) return [o.x1, o.y1, o.x2, o.y2];
-    return null;
-  }
-  function isLabelItem(o) { return o && Number.isFinite(o.x) && Number.isFinite(o.y) && typeof o.name === 'string'; }
-
   function renderPortalMarkers(arr) {
     portalLinesFG.clearLayers();
 
@@ -1057,7 +1052,7 @@ import {
     };
 
     for (const p of arr) {
-      const ep = getEndpoints(p);
+      const ep = portalEndpoints(p);
       if (!ep) continue;
       const [x1, y1, x2, y2] = ep;
       const entryLL = toLL(x1 + 0.5, y1 + 0.5);
@@ -1070,7 +1065,7 @@ import {
 
   function renderPortalLabels(arr) {
     for (const item of arr) {
-      if (!isLabelItem(item)) continue;
+      if (!isPortalLabelItem(item)) continue;
       const { name, x, y } = item;
       makeLabel(x, y, name, 'portal').addTo(portalsLblFG);
     }
@@ -1078,12 +1073,8 @@ import {
 
   function renderPortals(ps) {
     if (!Array.isArray(ps)) return;
-    const portalPairs = [];
-    portalLabelItems = [];
-    for (const it of ps) {
-      if (getEndpoints(it)) portalPairs.push(it);
-      else if (isLabelItem(it)) portalLabelItems.push(it);
-    }
+    const { portalPairs, portalLabels } = splitPortalItems(ps);
+    portalLabelItems = portalLabels;
     renderPortalMarkers(portalPairs);
     renderPortalLabels(portalLabelItems);
   }

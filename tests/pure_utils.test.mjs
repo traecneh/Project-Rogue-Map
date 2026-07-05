@@ -73,6 +73,11 @@ import {
   normalizeTownList,
   normalizeZoneList
 } from '../js/data-normalization.js';
+import {
+  isPortalLabelItem,
+  portalEndpoints,
+  splitPortalItems
+} from '../js/portal-state.js';
 
 const FLOORS = {
   overworld: { key: 'overworld', label: 'Overworld', minX: 0, maxX: 4096, offset: 0 },
@@ -130,6 +135,29 @@ test('data normalization helpers build encounter and monster level maps', () => 
   ]);
   assert.equal(normalizeMonsterLevels(null), null);
   assert.equal(normalizeMonsterLevels(['bad']), null);
+});
+
+test('portal helpers detect supported endpoint shapes', () => {
+  assert.deepEqual(portalEndpoints({ entry: { x: 1, y: 2 }, exit: { x: 3, y: 4 } }), [1, 2, 3, 4]);
+  assert.deepEqual(portalEndpoints({ from: { x: 5, y: 6 }, to: { x: 7, y: 8 } }), [5, 6, 7, 8]);
+  assert.deepEqual(portalEndpoints({ a: { x: 9, y: 10 }, b: { x: 11, y: 12 } }), [9, 10, 11, 12]);
+  assert.deepEqual(portalEndpoints({ x1: 13, y1: 14, x2: 15, y2: 16 }), [13, 14, 15, 16]);
+  assert.equal(portalEndpoints({ x1: 13, y1: 14, x2: 15, y2: Number.NaN }), null);
+  assert.equal(portalEndpoints(null), null);
+});
+
+test('portal helpers split endpoint pairs from label-only records', () => {
+  const pair = { x1: 1, y1: 2, x2: 3, y2: 4 };
+  const label = { name: 'Portal Label', x: 20, y: 30 };
+  const invalidLabel = { name: 'Bad Label', x: 20, y: Infinity };
+  const bothShapes = { name: 'Endpoint Wins', x: 50, y: 60, from: { x: 5, y: 6 }, to: { x: 7, y: 8 } };
+  const split = splitPortalItems([label, pair, invalidLabel, bothShapes, null]);
+
+  assert.equal(isPortalLabelItem(label), true);
+  assert.equal(isPortalLabelItem(invalidLabel), false);
+  assert.deepEqual(split.portalPairs, [pair, bothShapes]);
+  assert.deepEqual(split.portalLabels, [label]);
+  assert.deepEqual(splitPortalItems(null), { portalPairs: [], portalLabels: [] });
 });
 
 test('search helpers normalize, escape, and match names safely', () => {

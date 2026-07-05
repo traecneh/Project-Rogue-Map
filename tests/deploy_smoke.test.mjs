@@ -40,8 +40,9 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
   const responses = new Map([
     ['https://example.test/map/', response(200, '<script type="module" src="./js/app.js"></script>')],
     ['https://example.test/map/js/config.js', response(200, 'export const DATA = {}; export const FLOORS = {};')],
-    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { buildSearchIndex } from './search-index.js'; import { chunkMonsterNames } from './chunk-label-state.js'; import { searchTypeForRun } from './search-focus-state.js'; import { normalizeTownList } from './data-normalization.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
+    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { buildSearchIndex } from './search-index.js'; import { chunkMonsterNames } from './chunk-label-state.js'; import { searchTypeForRun } from './search-focus-state.js'; import { normalizeTownList } from './data-normalization.js'; import { splitPortalItems } from './portal-state.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
     ['https://example.test/map/js/data-normalization.js', response(200, 'export function normalizeTownList() {} export function normalizeEncounterIndex() {} export function normalizeMonsterLevels() {} export function normalizePoiList() {}')],
+    ['https://example.test/map/js/portal-state.js', response(200, 'export function portalEndpoints() {} export function isPortalLabelItem() {} export function splitPortalItems() {}')],
     ['https://example.test/map/js/search-index.js', response(200, 'export function buildSearchIndex() {}')],
     ['https://example.test/map/js/chunk-label-state.js', response(200, 'export function chunkMonsterNames() {} export function isBossMonster() {} export function selectTopMonster() {}')],
     ['https://example.test/map/js/search-focus-state.js', response(200, 'export function searchTypeForRun() {} export function searchEntryFocusTarget() {} export function bestSearchClusterCenter() {} export function searchLabelZoom() {}')],
@@ -63,6 +64,7 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     'js/config.js',
     'js/app.js',
     'js/data-normalization.js',
+    'js/portal-state.js',
     'js/search-index.js',
     'js/chunk-label-state.js',
     'js/search-focus-state.js',
@@ -79,6 +81,7 @@ test('runDeploySmoke reports stale deployments', async () => {
     ['https://example.test/map/js/config.js', response(404, 'not found')],
     ['https://example.test/map/js/app.js', response(200, "const IMG_PATH = './img/Map_Combined.png';")],
     ['https://example.test/map/js/data-normalization.js', response(404, 'not found')],
+    ['https://example.test/map/js/portal-state.js', response(404, 'not found')],
     ['https://example.test/map/js/search-index.js', response(404, 'not found')],
     ['https://example.test/map/js/chunk-label-state.js', response(404, 'not found')],
     ['https://example.test/map/js/search-focus-state.js', response(404, 'not found')],
@@ -96,7 +99,7 @@ test('runDeploySmoke reports stale deployments', async () => {
   assert.equal(result.ok, false);
   assert.deepEqual(
     result.checks.filter(check => !check.ok).map(check => check.name),
-    ['module app script', 'js/config.js', 'js/app.js', 'js/data-normalization.js', 'js/search-index.js', 'js/chunk-label-state.js', 'js/search-focus-state.js', 'js/layer-state.js', 'js/monster-filter-state.js', 'js/url-state.js']
+    ['module app script', 'js/config.js', 'js/app.js', 'js/data-normalization.js', 'js/portal-state.js', 'js/search-index.js', 'js/chunk-label-state.js', 'js/search-focus-state.js', 'js/layer-state.js', 'js/monster-filter-state.js', 'js/url-state.js']
   );
 });
 

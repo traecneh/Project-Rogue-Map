@@ -16,6 +16,8 @@ Frontend JavaScript uses native browser ES modules. There is no bundled build st
 
 The extracted data directory must contain at least `map.json` and `tiles.json`. The renderer can also read the client atlas from `C:\Users\traec\Desktop\Project Rogue\Client\gf_json\tiles.json` when atlas-average experiments are needed, but the current live map uses the extracted tile RGB colors.
 
+For the exact future update sequence, use the [future update runbook](docs/future-update-runbook.md).
+
 ## Map Render Rules
 
 These are the rules that made the current Overworld and Underground line up correctly:
@@ -109,6 +111,14 @@ Run the full local check suite with:
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\run_all_checks.ps1
 ```
+
+GitHub Actions runs the repository-contained subset with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_ci_checks.ps1
+```
+
+The CI subset does not replace the full local map health check because the extracted client data under `.analysis` is local-only.
 
 Frontend helper unit tests can be run with:
 

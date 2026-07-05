@@ -46,12 +46,16 @@ foreach ($file in $jsFiles) {
   Invoke-Check "Syntax check $file" @('node', '--check', $file)
 }
 
+$pythonFiles = Get-ChildItem -Path 'tools' -Filter '*.py' |
+  Sort-Object Name |
+  ForEach-Object { Join-Path 'tools' $_.Name }
+Invoke-Check 'Python tool syntax' (@('python', '-m', 'py_compile') + $pythonFiles)
+
 Invoke-Check 'Pure utility unit tests' @('node', '--test', 'tests\pure_utils.test.mjs')
 Invoke-Check 'Deploy smoke unit tests' @('node', '--test', 'tests\deploy_smoke.test.mjs')
 Invoke-Check 'Project workflow contract tests' @('node', '--test', 'tests\project_workflow.test.mjs')
 Invoke-Check 'Search layer regression' @('node', 'tests\search_layer_regression.mjs')
 Invoke-Check 'Map update unittest' @('python', '-m', 'unittest', 'tests.test_run_map_update_checks')
-Invoke-Check 'Map update health check' @('python', 'tools\run_map_update_checks.py')
 
 Write-Host ""
-Write-Host "All local checks passed."
+Write-Host "All CI checks passed."

@@ -57,6 +57,7 @@ import {
 } from '../js/monster-filter-state.js';
 import {
   coordinateTargetFromUrlSearch,
+  parseCoordinateLabel,
   parseCoordinateValue,
   readQueryParam,
   searchTermFromUrlSearch,
@@ -364,18 +365,24 @@ test('url helpers parse and normalize coordinate deep links', () => {
   assert.equal(parseCoordinateValue('abc'), null);
   assert.equal(parseCoordinateValue(''), null);
   assert.deepEqual(coordinateTargetFromUrlSearch('?x=4096.2&y=25.7'), { x: 4096, y: 26 });
+  assert.deepEqual(
+    coordinateTargetFromUrlSearch('?x=3415&y=3722&label=%20Town%20Guide%20'),
+    { x: 3415, y: 3722, label: 'Town Guide' }
+  );
   assert.equal(coordinateTargetFromUrlSearch('?x=10'), null);
+  assert.equal(parseCoordinateLabel('  Cave Entrance  '), 'Cave Entrance');
+  assert.equal(parseCoordinateLabel('abcdef', 4), 'abcd');
 
   assert.deepEqual(
     normalizeUrlCoordinateTarget({
-      target: { x: 9000, y: -5 },
+      target: { x: 9000, y: -5, label: 'Quest Destination' },
       imageWidth: 8192,
       imageHeight: 4096,
       clamp,
       floorForX: x => floorForX(x, 4096),
       clampFloorX: (x, floor) => clampFloorX(x, floor, FLOORS, clamp)
     }),
-    { x: 8191, y: 0 }
+    { x: 8191, y: 0, label: 'Quest Destination' }
   );
   assert.equal(
     normalizeUrlCoordinateTarget({

@@ -230,33 +230,42 @@ import {
     });
   }
 
-  function coordinateLinkIcon() {
+  function coordinateLinkIcon(label = '') {
+    const markerLabel = label
+      ? `<span class="coord-link-marker-label">${escHtml(label)}</span>`
+      : '';
     return L.divIcon({
       className: 'coord-link-marker',
-      html: '<div class="coord-link-marker-inner" aria-hidden="true">X</div>',
+      html: `
+        <div class="coord-link-marker-content">
+          <div class="coord-link-marker-inner" aria-hidden="true">X</div>
+          ${markerLabel}
+        </div>
+      `,
       iconSize: [16, 16],
       iconAnchor: [8, 8]
     });
   }
 
-  function showCoordinateTargetMarker(x, y) {
+  function showCoordinateTargetMarker(x, y, label = '') {
     const latlng = toLL(x, y);
     if (!coordinateUrlMarker) {
       coordinateUrlMarker = L.marker(latlng, {
         pane: 'deep-link',
         interactive: false,
         keyboard: false,
-        icon: coordinateLinkIcon()
+        icon: coordinateLinkIcon(label)
       }).addTo(deepLinkFG);
     } else {
       coordinateUrlMarker.setLatLng(latlng);
+      coordinateUrlMarker.setIcon(coordinateLinkIcon(label));
     }
   }
 
   function focusCoordinateTarget(target, opts = {}) {
     const point = normalizeCoordinateTarget(target);
     if (!point) return null;
-    showCoordinateTargetMarker(point.x, point.y);
+    showCoordinateTargetMarker(point.x, point.y, point.label);
     const focused = focusWorldPoint(point.x, point.y, opts);
     return focused ? point : null;
   }

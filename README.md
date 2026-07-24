@@ -38,6 +38,8 @@ Do not rotate, flip, or transpose the Underground unless a future client update 
 
 The app maps game Y coordinates into Leaflet image latitude with `IMG_H - y`. That applies to both floors in `js/app.js`; do not special-case Underground marker Y in the app.
 
+Coordinate deep links use `?x=<game-x>&y=<game-y>`. An optional `label` parameter displays a short name beside the focused marker, for example `?x=3415&y=3722&label=Town+Guide`.
+
 The overlay checker has two modes because it works directly against PNG pixels:
 
 - `invert` means app-style Leaflet coordinates.

@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw
 from render_map_candidate import load_map_arrays, load_tile_rgb_palette
 
 
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-07-03"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-07-22"
 DEFAULT_DATA_DIR = Path("data")
 CHUNK = 16
 PAGE_CHUNKS = 256

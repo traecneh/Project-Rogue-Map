@@ -11,7 +11,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_EXTRACTED_DIR = ROOT / ".analysis" / "rogue_data_vpack_2026-07-03"
+DEFAULT_EXTRACTED_DIR = ROOT / ".analysis" / "rogue_data_vpack_2026-07-22"
 DEFAULT_MAP_IMAGE = ROOT / "img" / "Map_Combined.png"
 DEFAULT_DATA_DIR = ROOT / "data"
 

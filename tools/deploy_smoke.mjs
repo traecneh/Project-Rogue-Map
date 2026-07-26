@@ -304,6 +304,11 @@ export async function runDeploySmoke({
 
   const mapImage = await fetchResource(fetchImpl, new URL('img/Map_Combined.png', normalizedBaseUrl).href);
   checks.push(buildCheckResult('map image', responseIssues(mapImage)));
+  const mapPreviewImage = await fetchResource(
+    fetchImpl,
+    new URL('img/Map_Combined-preview.webp', normalizedBaseUrl).href
+  );
+  checks.push(buildCheckResult('map preview image', responseIssues(mapPreviewImage)));
 
   return {
     baseUrl: normalizedBaseUrl,

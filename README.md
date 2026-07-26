@@ -9,6 +9,7 @@ The map image is generated from local Project Rogue client data. The overlay JSO
 - Local client install: `C:\Users\traec\Desktop\Project Rogue\Client`
 - Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-07-22`
 - Live map image served by the app: `img\Map_Combined.png`
+- Lightweight external-preview image: `img\Map_Combined-preview.webp`
 - App entry point: `index.html`
 - Main app logic: `js\app.js`
 
@@ -92,13 +93,19 @@ The elite-zone overlay is not part of the current validation path.
      --underground-transform identity
    ```
 
-6. Run the full post-update health check:
+6. Regenerate the lightweight map preview:
+
+   ```powershell
+   python tools\generate_map_preview.py
+   ```
+
+7. Run the full post-update health check:
 
    ```powershell
    python tools\run_map_update_checks.py --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD
    ```
 
-7. Start a local server and spot-check both floors:
+8. Start a local server and spot-check both floors:
 
    ```powershell
    python -m http.server 8001
@@ -150,6 +157,7 @@ node tools\deploy_smoke.mjs https://example.com/Project-Rogue-Map/
 
 - all Python map tools compile;
 - a fresh render matches `img\Map_Combined.png`;
+- `img\Map_Combined-preview.webp` matches the current live map;
 - the lineage guard still sees the Underground as source-order `q(1,0)` with `identity` orientation;
 - live map colors are still from the extracted tile palette;
 - manual overlay coordinates are in bounds;

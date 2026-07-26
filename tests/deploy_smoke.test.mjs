@@ -50,7 +50,8 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     ['https://example.test/map/js/layer-state.js', response(200, 'export function labelLayerKeyForSearchType() {} export function searchLabelMarkerState() {}')],
     ['https://example.test/map/js/monster-filter-state.js', response(200, 'export function monsterFilterStatusText() {} export function normalizeMonsterFilterExclusive() {} export function reconcileMonsterFilterState() {}')],
     ['https://example.test/map/js/url-state.js', response(200, 'export function searchTermFromUrlSearch() {} export function urlWithSearchTerm() {} export function coordinateTargetFromUrlSearch() {} export function normalizeCoordinateTarget() {}')],
-    ['https://example.test/map/img/Map_Combined.png', response(200, '')]
+    ['https://example.test/map/img/Map_Combined.png', response(200, '')],
+    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')]
   ]);
 
   const result = await runDeploySmoke({
@@ -73,7 +74,8 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     'js/layer-state.js',
     'js/monster-filter-state.js',
     'js/url-state.js',
-    'map image'
+    'map image',
+    'map preview image'
   ]);
 });
 
@@ -91,7 +93,8 @@ test('runDeploySmoke reports stale deployments', async () => {
     ['https://example.test/map/js/layer-state.js', response(404, 'not found')],
     ['https://example.test/map/js/monster-filter-state.js', response(404, 'not found')],
     ['https://example.test/map/js/url-state.js', response(404, 'not found')],
-    ['https://example.test/map/img/Map_Combined.png', response(200, '')]
+    ['https://example.test/map/img/Map_Combined.png', response(200, '')],
+    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')]
   ]);
 
   const result = await runDeploySmoke({

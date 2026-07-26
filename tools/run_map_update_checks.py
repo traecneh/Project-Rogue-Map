@@ -13,6 +13,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXTRACTED_DIR = ROOT / ".analysis" / "rogue_data_vpack_2026-07-22"
 DEFAULT_MAP_IMAGE = ROOT / "img" / "Map_Combined.png"
+DEFAULT_MAP_PREVIEW = ROOT / "img" / "Map_Combined-preview.webp"
 DEFAULT_DATA_DIR = ROOT / "data"
 
 
@@ -161,6 +162,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--extracted-dir", type=Path, default=DEFAULT_EXTRACTED_DIR)
     parser.add_argument("--map-image", type=Path, default=DEFAULT_MAP_IMAGE)
+    parser.add_argument("--map-preview", type=Path, default=DEFAULT_MAP_PREVIEW)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--render-output", type=Path, default=None)
     parser.add_argument("--render-thumbnail", type=Path, default=None)
@@ -212,6 +214,24 @@ def main() -> int:
     checks: list[CheckResult] = []
     try:
         checks.append(py_compile_tools())
+        run_command(
+            [
+                sys.executable,
+                str(ROOT / "tools" / "generate_map_preview.py"),
+                "--source",
+                str(args.map_image),
+                "--output",
+                str(args.map_preview),
+                "--check",
+            ]
+        )
+        checks.append(
+            result(
+                "map preview freshness",
+                True,
+                f"{args.map_preview} matches the current live map",
+            )
+        )
 
         render_stdout = run_command(
             [

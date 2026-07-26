@@ -70,6 +70,12 @@ python tools\render_map_candidate.py `
   --underground-transform identity
 ```
 
+Regenerate the lightweight image used by external map previews:
+
+```powershell
+python tools\generate_map_preview.py
+```
+
 ## 5. Run Map Health Checks
 
 ```powershell

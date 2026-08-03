@@ -16,6 +16,8 @@ import {
   MONSTER_FILTER_HINT_DEFAULT,
   MONSTER_FILTER_HINT_NEED_RANGE,
   MONSTER_FILTER_HINT_UNAVAILABLE,
+  MONSTER_OVERVIEW_MAX_SPAN,
+  MONSTER_OVERVIEW_TARGET_PX,
   SEARCH_CLUSTER_RADIUS,
   SEARCH_LABEL_MIN_PX,
   SEARCH_SUGGESTION_LIMIT,
@@ -47,6 +49,10 @@ import {
   isBossMonster as isBossMonsterName,
   selectTopMonster as selectTopChunkMonster
 } from './chunk-label-state.js';
+import {
+  buildMonsterOverviewGroups,
+  monsterOverviewGroupSpan
+} from './monster-overview-state.js';
 import {
   bestSearchClusterCenter as bestSearchClusterCenterValue,
   searchEntryFocusTarget,
@@ -703,6 +709,7 @@ import {
 
   // -------- Monsters (chunk labels) via encounters.json only --------
   const chunkTiles = new Map();   // key "cx,cy" -> L.Marker
+  const overviewTiles = new Map(); // key "span:cx,cy" -> L.Marker
   let encountersIndex = null;     // Map<"cx,cy", string[]>
   let monsterLevels = null;       // Map<monster name, level>
   let monsterLevelValues = [];    // Unique sorted level list for filter UI
@@ -836,6 +843,23 @@ import {
     return L.latLngBounds(toLL(x0, y0), toLL(x0 + CHUNK_SIZE, y0 + CHUNK_SIZE));
   }
 
+  function overviewBounds(group) {
+    const x0 = group.chunkX * CHUNK_SIZE;
+    const y0 = group.chunkY * CHUNK_SIZE;
+    const size = group.span * CHUNK_SIZE;
+    return L.latLngBounds(toLL(x0, y0), toLL(x0 + size, y0 + size));
+  }
+
+  function clearMarkerMap(markers) {
+    for (const marker of markers.values()) chunkFG.removeLayer(marker);
+    markers.clear();
+  }
+
+  function clearMonsterMarkers() {
+    clearMarkerMap(chunkTiles);
+    clearMarkerMap(overviewTiles);
+  }
+
   function applyInner(el, w, h, names) {
     const inner = el.querySelector('.chunk-label-inner'); if (!inner) return;
     inner.classList.remove('compact');
@@ -905,6 +929,126 @@ import {
     return [Math.abs(p1.x - p0.x), Math.abs(p1.y - p0.y)];
   }
 
+  function overviewTooltipHtml(group) {
+    const countLabel = group.occupiedChunks === 1 ? '1 encounter tile' : `${group.occupiedChunks} encounter tiles`;
+    const rows = group.topMonsters.slice(0, 6).map(monster => {
+      const level = Number.isFinite(monster.level) ? `Lv ${monster.level}` : 'Lv ?';
+      const frequency = monster.chunkCount === 1 ? '1 tile' : `${monster.chunkCount} tiles`;
+      return `<div class="monster-overview-tooltip-row"><span>${escHtml(monster.name)}</span><span>${level} · ${frequency}</span></div>`;
+    }).join('');
+    const remainder = Math.max(0, group.distinctMonsters - 6);
+    const more = remainder ? `<div class="monster-overview-tooltip-more">+${remainder} more types</div>` : '';
+    return `<div class="monster-overview-tooltip-content"><strong>${escHtml(group.levelLabel)}</strong><span>${countLabel} · ${group.distinctMonsters} monster types</span>${rows}${more}</div>`;
+  }
+
+  function overviewLabelHtml(group) {
+    const dominant = group.topMonsters[0];
+    const extra = Math.max(0, group.distinctMonsters - 1);
+    const tier = group.span >= 32 ? 'far' : group.span >= 8 ? 'mid' : 'near';
+    const primary = tier === 'far' ? group.levelLabel : dominant?.name || group.levelLabel;
+    const secondary = tier === 'far'
+      ? `${group.distinctMonsters} ${group.distinctMonsters === 1 ? 'type' : 'types'}`
+      : `${group.levelLabel}${extra ? ` · +${extra}` : ''}`;
+    const difficulty = zoneDifficultyStyle(group.maxLevel);
+    const centerX = clamp((group.centerChunkX - group.chunkX) / group.span, 0.2, 0.8) * 100;
+    const centerY = clamp((group.centerChunkY - group.chunkY) / group.span, 0.2, 0.8) * 100;
+    const style = [
+      `--monster-overview-accent:${difficulty.border}`,
+      `--monster-overview-surface:${difficulty.bg}`,
+      `--monster-overview-x:${centerX}%`,
+      `--monster-overview-y:${centerY}%`
+    ].join(';');
+    const bossClass = difficulty.skull ? ' boss' : '';
+    return `<div class="monster-overview-cell tier-${tier}${bossClass}" style="${style}"><div class="monster-overview-badge"><span class="monster-overview-primary">${escHtml(primary)}</span><span class="monster-overview-secondary">${escHtml(secondary)}</span></div></div>`;
+  }
+
+  function zoomIntoMonsterOverview(marker) {
+    const target = marker._overviewGroup;
+    if (!target) return;
+    const maxZoom = map.getMaxZoom();
+    const nextZoom = Math.min(map.getZoom() + 1, Number.isFinite(maxZoom) ? maxZoom : map.getZoom() + 1);
+    map.setView(toLL(target.centerChunkX * CHUNK_SIZE, target.centerChunkY * CHUNK_SIZE), nextZoom);
+  }
+
+  function wireOverviewBadge(marker) {
+    const wire = () => {
+      const badge = marker.getElement()?.querySelector('.monster-overview-badge');
+      if (!badge || badge.dataset.zoomWired === 'true') return;
+      badge.dataset.zoomWired = 'true';
+      badge.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        zoomIntoMonsterOverview(marker);
+      });
+    };
+    wire();
+    requestAnimationFrame(wire);
+  }
+
+  function fitOverviewLabel(bounds, group, marker) {
+    const tl = map.latLngToLayerPoint(bounds.getNorthWest());
+    const br = map.latLngToLayerPoint(bounds.getSouthEast());
+    const w = Math.max(40, Math.round(Math.abs(br.x - tl.x)));
+    const h = Math.max(40, Math.round(Math.abs(br.y - tl.y)));
+    const hash = `${group.levelLabel}|${group.occupiedChunks}|${group.topMonsters.map(monster => `${monster.name}:${monster.chunkCount}`).join('|')}`;
+    if (marker._lastW === w && marker._lastH === h && marker._lastHash === hash) return;
+    marker._lastW = w;
+    marker._lastH = h;
+    marker._lastHash = hash;
+    marker.setIcon(L.divIcon({
+      className: 'monster-overview-icon',
+      html: overviewLabelHtml(group),
+      iconSize: [w, h],
+      iconAnchor: [w / 2, h / 2]
+    }));
+    wireOverviewBadge(marker);
+    const tooltip = overviewTooltipHtml(group);
+    if (marker.getTooltip()) marker.setTooltipContent(tooltip);
+    else marker.bindTooltip(tooltip, { direction: 'top', offset: [0, -12], opacity: 1, className: 'monster-overview-tooltip' });
+  }
+
+  function renderMonsterOverview({ cx0, cx1, cy0, cy1, span }) {
+    clearMarkerMap(chunkTiles);
+    const groups = buildMonsterOverviewGroups({
+      cx0,
+      cx1,
+      cy0,
+      cy1,
+      span,
+      namesForChunk,
+      monsterLevelForName: monsterLevel
+    });
+    const keep = new Set();
+
+    for (const group of groups) {
+      keep.add(group.key);
+      const bounds = overviewBounds(group);
+      let marker = overviewTiles.get(group.key);
+      if (!marker) {
+        marker = L.marker(bounds.getCenter(), {
+          pane: 'chunk',
+          interactive: true,
+          keyboard: true,
+          bubblingMouseEvents: false,
+          title: 'Zoom in to inspect this encounter area'
+        }).addTo(chunkFG);
+        marker.on('click', () => zoomIntoMonsterOverview(marker));
+        overviewTiles.set(group.key, marker);
+      } else {
+        marker.setLatLng(bounds.getCenter());
+      }
+      marker._overviewGroup = group;
+      fitOverviewLabel(bounds, group, marker);
+    }
+
+    for (const [key, marker] of overviewTiles) {
+      if (!keep.has(key)) {
+        chunkFG.removeLayer(marker);
+        overviewTiles.delete(key);
+      }
+    }
+  }
+
   function chunkScreenSizeAtZoom(z) {
     const p0 = map.project(toLL(0, 0), z);
     const p1 = map.project(toLL(CHUNK_SIZE, CHUNK_SIZE), z);
@@ -948,33 +1092,54 @@ import {
 
     if (!isOn(pillMonsters)) {
       // fully clear when turning OFF to avoid stale empty boxes when turning back ON
-      chunkFG.clearLayers();
-      chunkTiles.clear();
+      clearMonsterMarkers();
       return;
     }
 
     const [cw, ch] = chunkScreenSize();
-    if (!currentSearchRegex && (cw < MIN_CHUNK_SCREEN_PX || ch < MIN_CHUNK_SCREEN_PX)) {
-      chunkFG.clearLayers();
-      chunkTiles.clear();
-      return;
-    }
-
-    // Visible chunk range with ±1 padding to avoid edge pop-in
-    const PAD = 1;
+    const chunkPx = Math.min(cw, ch);
     const b = map.getBounds();
     const [minX, minY] = toGameXY(b.getNorthWest());
     const [maxX, maxY] = toGameXY(b.getSouthEast());
     const maxCx = Math.floor(IMG_W / CHUNK_SIZE) - 1;
     const maxCy = Math.floor(IMG_H / CHUNK_SIZE) - 1;
+    const selectedFloor = floorConfig(currentFloor);
+    const floorMinCx = Math.floor(selectedFloor.minX / CHUNK_SIZE);
+    const floorMaxCx = Math.min(maxCx, Math.ceil(selectedFloor.maxX / CHUNK_SIZE) - 1);
 
-    const rawCx0 = Math.floor(Math.min(minX, maxX) / CHUNK_SIZE) - PAD;
-    const rawCx1 = Math.floor((Math.max(minX, maxX) - 1) / CHUNK_SIZE) + PAD;
-    const rawCy0 = Math.floor(Math.min(minY, maxY) / CHUNK_SIZE) - PAD;
-    const rawCy1 = Math.floor((Math.max(minY, maxY) - 1) / CHUNK_SIZE) + PAD;
+    const rawCx0 = Math.floor(Math.min(minX, maxX) / CHUNK_SIZE);
+    const rawCx1 = Math.floor((Math.max(minX, maxX) - 1) / CHUNK_SIZE);
+    const rawCy0 = Math.floor(Math.min(minY, maxY) / CHUNK_SIZE);
+    const rawCy1 = Math.floor((Math.max(minY, maxY) - 1) / CHUNK_SIZE);
 
-    const cx0 = clamp(rawCx0, 0, maxCx), cx1 = clamp(rawCx1, 0, maxCx);
-    const cy0 = clamp(rawCy0, 0, maxCy), cy1 = clamp(rawCy1, 0, maxCy);
+    if (chunkPx < MIN_CHUNK_SCREEN_PX) {
+      const span = monsterOverviewGroupSpan({
+        chunkScreenPx: chunkPx,
+        detailMinPx: MIN_CHUNK_SCREEN_PX,
+        targetScreenPx: MONSTER_OVERVIEW_TARGET_PX,
+        maxSpan: MONSTER_OVERVIEW_MAX_SPAN
+      });
+      const firstGroupCx = Math.floor(rawCx0 / span) * span;
+      const lastGroupCx = Math.floor(rawCx1 / span) * span;
+      const firstGroupCy = Math.floor(rawCy0 / span) * span;
+      const lastGroupCy = Math.floor(rawCy1 / span) * span;
+      renderMonsterOverview({
+        cx0: clamp(firstGroupCx - span, floorMinCx, floorMaxCx),
+        cx1: clamp(lastGroupCx + (span * 2) - 1, floorMinCx, floorMaxCx),
+        cy0: clamp(firstGroupCy - span, 0, maxCy),
+        cy1: clamp(lastGroupCy + (span * 2) - 1, 0, maxCy),
+        span
+      });
+      return;
+    }
+
+    clearMarkerMap(overviewTiles);
+
+    // Visible chunk range with one tile of padding to avoid edge pop-in.
+    const PAD = 1;
+
+    const cx0 = clamp(rawCx0 - PAD, floorMinCx, floorMaxCx), cx1 = clamp(rawCx1 + PAD, floorMinCx, floorMaxCx);
+    const cy0 = clamp(rawCy0 - PAD, 0, maxCy), cy1 = clamp(rawCy1 + PAD, 0, maxCy);
 
     const keep = new Set();
 
@@ -1228,12 +1393,9 @@ import {
     setPill(pillMonsters, on);
     setLayerVisible(chunkFG, on);
     if (on) {
-      const zoomAdjusted = ensureMonstersZoom();
-      if (zoomAdjusted) map.once('zoomend', refreshChunkLayer);
-      else refreshChunkLayer();
+      refreshChunkLayer();
     } else {
-      chunkFG.clearLayers();
-      chunkTiles.clear();
+      clearMonsterMarkers();
     }
   });
 

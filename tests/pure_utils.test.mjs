@@ -32,6 +32,11 @@ import {
   selectTopMonster
 } from '../js/chunk-label-state.js';
 import {
+  buildMonsterOverviewGroups,
+  monsterOverviewGroupSpan,
+  monsterOverviewLevelLabel
+} from '../js/monster-overview-state.js';
+import {
   createSearchRegex,
   escapeSearchRegex,
   findSearchEntryByName,
@@ -607,6 +612,66 @@ test('chunk label helper selects top monsters and identifies bosses', () => {
   );
   assert.equal(isBossMonster('Death Tyrant', monsterLevelForName), true);
   assert.equal(isBossMonster('Dragon', monsterLevelForName), false);
+});
+
+test('monster overview chooses stable power-of-two group spans by zoom', () => {
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 32 }), 1);
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 16 }), 8);
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 8 }), 16);
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 4 }), 32);
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 1 }), 32);
+  assert.equal(monsterOverviewGroupSpan({ chunkScreenPx: 0 }), 32);
+  assert.equal(monsterOverviewLevelLabel(45, 45), 'Lv 45');
+  assert.equal(monsterOverviewLevelLabel(45, 105), 'Lv 45-105');
+  assert.equal(monsterOverviewLevelLabel(null, null), 'Lv ?');
+});
+
+test('monster overview aggregates world-aligned groups and ranks common encounters', () => {
+  const chunks = new Map([
+    ['0,0', ['Wisp', 'Dragon']],
+    ['1,0', ['Wisp', 'Goblin', 'Wisp']],
+    ['3,3', ['Death Tyrant']],
+    ['4,0', ['Goblin']]
+  ]);
+  const levels = new Map([
+    ['Wisp', 30],
+    ['Dragon', 50],
+    ['Goblin', 5],
+    ['Death Tyrant', 105]
+  ]);
+  const groups = buildMonsterOverviewGroups({
+    cx0: 0,
+    cx1: 7,
+    cy0: 0,
+    cy1: 3,
+    span: 4,
+    namesForChunk: (cx, cy) => chunks.get(`${cx},${cy}`) || [],
+    monsterLevelForName: name => levels.get(name) ?? null
+  });
+
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups[0], {
+    key: '4:0,0',
+    chunkX: 0,
+    chunkY: 0,
+    span: 4,
+    occupiedChunks: 3,
+    centerChunkX: 1.8333333333333333,
+    centerChunkY: 1.5,
+    minLevel: 5,
+    maxLevel: 105,
+    levelLabel: 'Lv 5-105',
+    distinctMonsters: 4,
+    topMonsters: [
+      { name: 'Wisp', level: 30, chunkCount: 2 },
+      { name: 'Death Tyrant', level: 105, chunkCount: 1 },
+      { name: 'Dragon', level: 50, chunkCount: 1 },
+      { name: 'Goblin', level: 5, chunkCount: 1 }
+    ]
+  });
+  assert.equal(groups[1].key, '4:4,0');
+  assert.equal(groups[1].centerChunkX, 4.5);
+  assert.equal(groups[1].centerChunkY, 0.5);
 });
 
 test('zone helpers preserve current level formatting and difficulty thresholds', () => {

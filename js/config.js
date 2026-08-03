@@ -29,6 +29,8 @@ export const MONSTER_FILTER_HINT_NEED_RANGE = 'Set min/max to use Exclusive mode
 
 export const CHUNK_SIZE = 16;
 export const MIN_CHUNK_SCREEN_PX = 26;
+export const MONSTER_OVERVIEW_TARGET_PX = 112;
+export const MONSTER_OVERVIEW_MAX_SPAN = 32;
 export const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6;
 export const SEARCH_CLUSTER_RADIUS = 1;
 export const SEARCH_SUGGESTION_LIMIT = 12;

@@ -466,6 +466,108 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   text-shadow: 0 0 6px rgba(255, 107, 107, 0.7), 0 0 2px #000;
 }
 
+.leaflet-marker-icon.monster-overview-icon {
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+.monster-overview-cell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+.monster-overview-badge {
+  position: absolute;
+  left: var(--monster-overview-x);
+  top: var(--monster-overview-y);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  max-width: calc(100% - 6px);
+  min-width: 52px;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid var(--monster-overview-accent);
+  border-radius: 4px;
+  background: rgba(12, 16, 21, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.52);
+  color: color-mix(in srgb, var(--monster-overview-surface) 72%, white);
+  cursor: zoom-in;
+  pointer-events: auto;
+  text-align: center;
+}
+.monster-overview-badge:hover,
+.monster-overview-icon:focus .monster-overview-badge {
+  border-color: color-mix(in srgb, var(--monster-overview-accent) 70%, white);
+  background: rgba(18, 23, 30, 0.97);
+}
+.monster-overview-primary,
+.monster-overview-secondary {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.monster-overview-primary {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+.monster-overview-secondary {
+  color: #d4d9e1;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+.monster-overview-cell.tier-far .monster-overview-primary {
+  font-size: 12px;
+}
+.monster-overview-cell.tier-far .monster-overview-secondary {
+  color: #eef1f5;
+}
+.monster-overview-cell.boss .monster-overview-badge {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.52), 0 0 7px rgba(255, 107, 107, 0.48);
+}
+.leaflet-tooltip.monster-overview-tooltip {
+  min-width: 190px;
+  max-width: 280px;
+  padding: 7px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 4px;
+  background: rgba(12, 16, 21, 0.97);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  color: #f5f7fa;
+}
+.leaflet-tooltip.monster-overview-tooltip::before {
+  border-top-color: rgba(12, 16, 21, 0.97);
+}
+.monster-overview-tooltip-content {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.monster-overview-tooltip-content > span,
+.monster-overview-tooltip-more {
+  color: #aeb7c4;
+  font-size: 10px;
+}
+.monster-overview-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+.monster-overview-tooltip-row span:last-child {
+  color: #aeb7c4;
+  white-space: nowrap;
+}
+
 .zone-level-icon { pointer-events: none; }
 .zone-level {
   display: inline-flex;

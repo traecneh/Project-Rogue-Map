@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 DEFAULT_CLIENT_DIR = Path(r"C:\Users\traec\Desktop\Project Rogue\Client")
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-07-22"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-08-07"
 DEFAULT_DATA_DIR = Path("data")
 MANUAL_SITE_OVERLAY_FILES = (
     "zones.json",

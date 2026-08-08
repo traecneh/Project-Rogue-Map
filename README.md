@@ -7,7 +7,7 @@ The map image is generated from local Project Rogue client data. The overlay JSO
 ## Important Paths
 
 - Local client install: `C:\Users\traec\Desktop\Project Rogue\Client`
-- Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-07-22`
+- Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-08-07`
 - Live map image served by the app: `img\Map_Combined.png`
 - Lightweight external-preview image: `img\Map_Combined-preview.webp`
 - App entry point: `index.html`

@@ -10,8 +10,8 @@ from PIL import Image, ImageDraw
 from check_overlay_alignment import CHUNK, FLOOR_W, IMG_H, IMG_W, collect_encounter_cells, collect_points, collect_zone_cells
 
 
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-08-07"
-DEFAULT_CANDIDATE = DEFAULT_EXTRACTED_DIR / "Map_Combined_hybrid_current_overworld_vpack_q01_l0.png"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-09-02"
+DEFAULT_CANDIDATE = DEFAULT_EXTRACTED_DIR / "Map_Combined_candidate.png"
 DEFAULT_REPORT = DEFAULT_EXTRACTED_DIR / "candidate_rotation_alignment_report.json"
 DEFAULT_SHEET = DEFAULT_EXTRACTED_DIR / "candidate_rotation_alignment_variants.png"
 DEFAULT_BEST_MAP = DEFAULT_EXTRACTED_DIR / "Map_Combined_hybrid_current_overworld_vpack_q01_l0_best_rotation.png"

@@ -24,8 +24,8 @@ from check_overlay_alignment import (
 )
 
 
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-08-07"
-DEFAULT_CANDIDATE = DEFAULT_EXTRACTED_DIR / "Map_Combined_hybrid_current_overworld_vpack_q01_l0.png"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-09-02"
+DEFAULT_CANDIDATE = DEFAULT_EXTRACTED_DIR / "Map_Combined_candidate.png"
 DEFAULT_REVIEW_SHEET = DEFAULT_EXTRACTED_DIR / "manual_overlay_candidate_review_sheet.png"
 DEFAULT_REPORT = DEFAULT_EXTRACTED_DIR / "manual_overlay_candidate_review_report.json"
 DEFAULT_CHECKLIST = DEFAULT_EXTRACTED_DIR / "manual_overlay_candidate_review_checklist.md"

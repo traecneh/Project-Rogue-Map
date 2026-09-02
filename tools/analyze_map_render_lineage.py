@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-08-07"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-09-02"
 DEFAULT_CURRENT_MAP = Path("img") / "Map_Combined.png"
 DEFAULT_BASELINE_MAP = Path(".analysis") / "Map_Combined_initial.png"
 DEFAULT_OLD_MAPDAT = Path(r"C:\Users\traec\Desktop\Client\data\map.dat")

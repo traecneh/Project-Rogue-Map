@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-08-07"
+DEFAULT_EXTRACTED_DIR = Path(".analysis") / "rogue_data_vpack_2026-09-02"
 DEFAULT_OUTPUT_NAME = "Map_Combined_candidate_source_layout_q00_q10_client.png"
 DEFAULT_THUMBNAIL_NAME = "map_candidate_thumbnail.png"
 DEFAULT_HYBRID_OUTPUT_NAME = "Map_Combined_hybrid_current_overworld_vpack_underground.png"

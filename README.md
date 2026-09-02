@@ -7,7 +7,7 @@ The map image is generated from local Project Rogue client data. The overlay JSO
 ## Important Paths
 
 - Local client install: `C:\Users\traec\Desktop\Project Rogue\Client`
-- Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-08-07`
+- Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-09-02`
 - Live map image served by the app: `img\Map_Combined.png`
 - Lightweight external-preview image: `img\Map_Combined-preview.webp`
 - App entry point: `index.html`
@@ -113,7 +113,7 @@ The elite-zone overlay is not part of the current validation path.
 
    Open `http://localhost:8001/`, switch between Overworld and Underground, and confirm the image and overlay layers load.
 
-8. Commit and push the regenerated map plus any intentional manual overlay updates.
+9. Commit and push the regenerated map plus any intentional manual overlay updates.
 
 ## Verification
 

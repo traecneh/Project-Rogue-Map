@@ -48,6 +48,16 @@ test('generated locale metadata preserves the confirmed classifications and sear
   )));
 });
 
+test('generated warfront metadata preserves the confirmed identities', () => {
+  const data = JSON.parse(readText('data/warfronts.json'));
+  const byId = new Map(data.warfronts.map(warfront => [warfront.id, warfront]));
+
+  assert.equal(byId.get(1).name, 'Talazarian Warfront');
+  assert.equal(byId.get(1).label, 'Talazarian');
+  assert.equal(byId.get(5).name, 'Abyssal Warfront');
+  assert.equal(byId.get(5).label, 'Abyssal');
+});
+
 test('local checks workflow runs the repository-contained CI verification script', () => {
   const workflow = readText('.github/workflows/local-checks.yml');
 

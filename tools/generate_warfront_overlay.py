@@ -25,11 +25,11 @@ BOUNDARY = (255, 255, 255, 220)
 PATTERN = (245, 248, 252, 145)
 
 WARFRONTS = {
-    1: {"name": "Abyssal Warfront", "label": "Abyssal", "color": "#a855f7", "pattern": "diagonal-down"},
+    1: {"name": "Talazarian Warfront", "label": "Talazarian", "color": "#a855f7", "pattern": "diagonal-down"},
     2: {"name": "Badlands Warfront", "label": "Badlands", "color": "#56b4e9", "pattern": "diagonal-up"},
     3: {"name": "Banished Warfront", "label": "Banished", "color": "#009e73", "pattern": "horizontal"},
     4: {"name": "Necropolitan Warfront", "label": "Necropolitan", "color": "#e69f00", "pattern": "vertical"},
-    5: {"name": "Talazarian Warfront", "label": "Talazarian", "color": "#f0e442", "pattern": "cross-diagonal"},
+    5: {"name": "Abyssal Warfront", "label": "Abyssal", "color": "#f0e442", "pattern": "cross-diagonal"},
     6: {"name": "Frozen Warfront", "label": "Frozen", "color": "#0072b2", "pattern": "dots"},
     7: {"name": "Toxic Warfront", "label": "Toxic", "color": "#d55e00", "pattern": "grid"},
 }

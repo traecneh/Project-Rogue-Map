@@ -10,8 +10,8 @@
   "warfronts": [
     {
       "id": 1,
-      "name": "Abyssal Warfront",
-      "label": "Abyssal",
+      "name": "Talazarian Warfront",
+      "label": "Talazarian",
       "color": "#a855f7",
       "pattern": "diagonal-down",
       "chunks": 1869,
@@ -58,8 +58,8 @@
     },
     {
       "id": 5,
-      "name": "Talazarian Warfront",
-      "label": "Talazarian",
+      "name": "Abyssal Warfront",
+      "label": "Abyssal",
       "color": "#f0e442",
       "pattern": "cross-diagonal",
       "chunks": 568,
@@ -96,7 +96,7 @@
   "labels": [
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "overworld",
       "x": 3000,
       "y": 744,
@@ -105,7 +105,7 @@
     },
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "overworld",
       "x": 3144,
       "y": 1256,
@@ -114,7 +114,7 @@
     },
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "overworld",
       "x": 3688,
       "y": 2248,
@@ -123,7 +123,7 @@
     },
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "underground",
       "x": 7224,
       "y": 1256,
@@ -132,7 +132,7 @@
     },
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "underground",
       "x": 7288,
       "y": 744,
@@ -141,7 +141,7 @@
     },
     {
       "id": 1,
-      "name": "Abyssal",
+      "name": "Talazarian",
       "floor": "underground",
       "x": 7000,
       "y": 744,
@@ -213,7 +213,7 @@
     },
     {
       "id": 5,
-      "name": "Talazarian",
+      "name": "Abyssal",
       "floor": "overworld",
       "x": 232,
       "y": 1528,
@@ -222,7 +222,7 @@
     },
     {
       "id": 5,
-      "name": "Talazarian",
+      "name": "Abyssal",
       "floor": "underground",
       "x": 4328,
       "y": 1592,

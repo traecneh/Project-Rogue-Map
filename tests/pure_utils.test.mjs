@@ -99,8 +99,8 @@ test('data normalization helpers preserve known array payloads and wrappers', ()
   const caves = [{ entry: { x: 1, y: 2 }, exit: { x: 3, y: 4 } }];
   const zones = [{ levels: { min: 1, max: 2 } }];
   const crim = [{ name: 'Crim', x: 5, y: 6 }];
-  const warfronts = [{ id: 1, name: 'Abyssal Warfront' }];
-  const warfrontLabels = [{ id: 1, name: 'Abyssal', x: 10, y: 20, primary: true }];
+  const warfronts = [{ id: 1, name: 'Talazarian Warfront' }];
+  const warfrontLabels = [{ id: 1, name: 'Talazarian', x: 10, y: 20, primary: true }];
   const locales = [{ id: 4, name: 'Jeel', category_label: 'Lawful Town' }];
   const localeLabels = [{ id: 4, name: 'Jeel', x: 40, y: 50, primary: true }];
 

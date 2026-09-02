@@ -39,12 +39,12 @@
           <input
             id="search"
             type="search"
-            placeholder="Type to find a monster (e.g., Balron)"
+            placeholder="Type to find a monster or place"
             autocomplete="off"
             aria-autocomplete="list"
             aria-controls="searchSuggestions"
           >
-          <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Matching monsters"></div>
+          <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Matching names"></div>
         </div>
       </section>
 
@@ -59,28 +59,36 @@
       <section class="group">
         <div class="group-title">Layers</div>
         <div class="layer-pills" role="group" aria-label="Layer toggles">
+          <!-- Client-derived Locales ON by default -->
+          <button id="pillLocales" class="pill-toggle pill-locale on" type="button" aria-pressed="true">
+            <span class="dot"></span><span class="txt">Locales</span>
+          </button>
+          <!-- Client-derived Warfront Areas OFF -->
+          <button id="pillWarfronts" class="pill-toggle pill-warfront" type="button" aria-pressed="false">
+            <span class="dot"></span><span class="txt">Warfronts</span>
+          </button>
+          <!-- Client-derived Safe Zones OFF -->
+          <button id="pillSafeZones" class="pill-toggle pill-safe-zone" type="button" aria-pressed="false">
+            <span class="dot"></span><span class="txt">Safe Zones</span>
+          </button>
           <!-- Monsters (chunk labels) OFF by default -->
           <button id="pillMonsters" class="pill-toggle pill-mon" type="button" aria-pressed="false">
             <span class="dot"></span><span class="txt">Monsters</span>
           </button>
-          <!-- Towns ON by default -->
-          <button id="pillTowns" class="pill-toggle pill-town on" type="button" aria-pressed="true">
-            <span class="dot"></span><span class="txt">Towns</span>
-          </button>
-          <!-- POIs OFF -->
-          <button id="pillPois" class="pill-toggle pill-poi on" type="button" aria-pressed="true">
+          <!-- POIs OFF by default -->
+          <button id="pillPois" class="pill-toggle pill-poi" type="button" aria-pressed="false">
             <span class="dot"></span><span class="txt">POIs</span>
           </button>
           <!-- Crim Spawns OFF -->
           <button id="pillCrim" class="pill-toggle pill-crim" type="button" aria-pressed="false">
             <span class="dot"></span><span class="txt">Crim Spawns</span>
           </button>
-          <!-- Portals OFF -->
-          <button id="pillPortals" class="pill-toggle pill-portal on" type="button" aria-pressed="true">
+          <!-- Portals OFF by default -->
+          <button id="pillPortals" class="pill-toggle pill-portal" type="button" aria-pressed="false">
             <span class="dot"></span><span class="txt">Portals</span>
           </button>
-          <!-- Caves OFF -->
-          <button id="pillCaves" class="pill-toggle pill-cave on" type="button" aria-pressed="true">
+          <!-- Caves OFF by default -->
+          <button id="pillCaves" class="pill-toggle pill-cave" type="button" aria-pressed="false">
             <span class="dot"></span><span class="txt">Caves</span>
           </button>
           <!-- Zones OFF -->

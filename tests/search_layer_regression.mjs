@@ -124,7 +124,7 @@ function createHarness() {
     const id = selector.slice(1);
     if (!elements.has(id)) {
       const el = makeElement(id);
-      if (['pillTowns', 'pillPois', 'pillPortals', 'pillCaves'].includes(id)) {
+      if (id === 'pillLocales') {
         el.classList.add('on');
       }
       elements.set(id, el);
@@ -284,14 +284,15 @@ await import(pathToFileURL(appPath).href);
 
 const api = globalThis.window.__PROJECT_ROGUE_TEST_HOOKS__.api;
 assert.ok(api, 'app test API was not exposed');
-const townMarker = makeMarker('Farmtown', 'town');
+const localeMarker = makeMarker('Farmtown', 'locale');
 const poiMarker = makeMarker('Ancient Ruins', 'poi');
-api.groups.towns.addLayer(townMarker);
+api.groups.localeLabelsFG.addLayer(localeMarker);
 api.groups.poisFG.addLayer(poiMarker);
+api.elements.pillPois.classList.add('on');
 
 api.commitSearch({ name: 'Death Tyrant', type: 'monster', level: 45 }, { focus: false, exact: true });
 
-assert.strictEqual(api.elements.pillTowns.classList.contains('on'), true);
+assert.strictEqual(api.elements.pillLocales.classList.contains('on'), true);
 assert.strictEqual(api.elements.pillPois.classList.contains('on'), true);
-assert.notStrictEqual(townMarker.el.style.display, 'none', 'monster search should not hide enabled town labels');
+assert.notStrictEqual(localeMarker.el.style.display, 'none', 'monster search should not hide enabled locale labels');
 assert.notStrictEqual(poiMarker.el.style.display, 'none', 'monster search should not hide enabled POI labels');

@@ -16,7 +16,9 @@ export function createSearchRegex(term, exact) {
 export function findSearchEntryByName(searchItems, name) {
   const normalized = normalizeName(name);
   if (!normalized) return null;
-  return searchItems.find(item => item.normalized === normalized) || null;
+  return searchItems.find(item => (
+    item.normalized === normalized || item.normalizedAliases?.includes(normalized)
+  )) || null;
 }
 
 export function findSearchSuggestions({
@@ -31,7 +33,9 @@ export function findSearchSuggestions({
   if (!clean) return [];
   const matches = [];
   for (const entry of searchItems) {
-    const idx = entry.normalized.indexOf(clean);
+    const terms = [entry.normalized, ...(entry.normalizedAliases || [])];
+    const indexes = terms.map(value => value.indexOf(clean)).filter(index => index !== -1);
+    const idx = indexes.length ? Math.min(...indexes) : -1;
     if (idx === -1) continue;
     matches.push({ entry, idx });
   }

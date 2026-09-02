@@ -47,6 +47,15 @@ export function validateConfigModule(source) {
   if (!/\bexport\s+const\s+FLOORS\b/.test(text)) {
     issues.push('js/config.js did not contain the expected FLOORS export');
   }
+  if (!/\bexport\s+const\s+SAFE_ZONE_IMG_PATH\b/.test(text)) {
+    issues.push('js/config.js did not contain the expected SAFE_ZONE_IMG_PATH export');
+  }
+  if (!/\bexport\s+const\s+LOCALES_IMG_PATH\b/.test(text)) {
+    issues.push('js/config.js did not contain the expected LOCALES_IMG_PATH export');
+  }
+  if (!/\bexport\s+const\s+WARFRONT_IMG_PATH\b/.test(text)) {
+    issues.push('js/config.js did not contain the expected WARFRONT_IMG_PATH export');
+  }
   return issues;
 }
 
@@ -147,10 +156,11 @@ export function validateDataNormalizationModule(source) {
   const text = String(source || '');
   const issues = [];
   for (const name of [
-    'normalizeTownList',
     'normalizePoiList',
     'normalizeEncounterIndex',
-    'normalizeMonsterLevels'
+    'normalizeMonsterLevels',
+    'normalizeWarfrontData',
+    'normalizeLocaleData'
   ]) {
     if (!new RegExp(`\\bexport\\s+function\\s+${name}\\b`).test(text)) {
       issues.push(`js/data-normalization.js did not contain ${name}`);
@@ -309,6 +319,16 @@ export async function runDeploySmoke({
     new URL('img/Map_Combined-preview.webp', normalizedBaseUrl).href
   );
   checks.push(buildCheckResult('map preview image', responseIssues(mapPreviewImage)));
+  const safeZoneImage = await fetchResource(fetchImpl, new URL('img/Safe_Zones.png', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('safe-zone image', responseIssues(safeZoneImage)));
+  const localeImage = await fetchResource(fetchImpl, new URL('img/Locales.png', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('locale image', responseIssues(localeImage)));
+  const localeData = await fetchResource(fetchImpl, new URL('data/locales.json', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('locale data', responseIssues(localeData)));
+  const warfrontImage = await fetchResource(fetchImpl, new URL('img/Warfronts.png', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('warfront image', responseIssues(warfrontImage)));
+  const warfrontData = await fetchResource(fetchImpl, new URL('data/warfronts.json', normalizedBaseUrl).href);
+  checks.push(buildCheckResult('warfront data', responseIssues(warfrontData)));
 
   return {
     baseUrl: normalizedBaseUrl,

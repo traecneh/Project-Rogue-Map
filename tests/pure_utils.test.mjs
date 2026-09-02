@@ -73,10 +73,11 @@ import {
   normalizeCaveList,
   normalizeCrimList,
   normalizeEncounterIndex,
+  normalizeLocaleData,
   normalizeMonsterLevels,
   normalizePoiList,
   normalizePortalList,
-  normalizeTownList,
+  normalizeWarfrontData,
   normalizeZoneList
 } from '../js/data-normalization.js';
 import {
@@ -93,18 +94,19 @@ const FLOORS = {
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 
 test('data normalization helpers preserve known array payloads and wrappers', () => {
-  const towns = [{ name: 'Farmtown', x: 80, y: 120 }, { name: '', x: Number.NaN }];
   const pois = [{ name: 'Ancient Ruins', x: 4500, y: 310 }];
   const portals = [{ x1: 1, y1: 2, x2: 3, y2: 4 }];
   const caves = [{ entry: { x: 1, y: 2 }, exit: { x: 3, y: 4 } }];
   const zones = [{ levels: { min: 1, max: 2 } }];
   const crim = [{ name: 'Crim', x: 5, y: 6 }];
+  const warfronts = [{ id: 1, name: 'Abyssal Warfront' }];
+  const warfrontLabels = [{ id: 1, name: 'Abyssal', x: 10, y: 20, primary: true }];
+  const locales = [{ id: 4, name: 'Jeel', category_label: 'Lawful Town' }];
+  const localeLabels = [{ id: 4, name: 'Jeel', x: 40, y: 50, primary: true }];
 
-  assert.equal(normalizeTownList(towns), towns);
   assert.equal(normalizePoiList(pois), pois);
   assert.equal(normalizePortalList(portals), portals);
   assert.equal(normalizeCrimList(crim), crim);
-  assert.deepEqual(normalizeTownList(null), []);
   assert.deepEqual(normalizePoiList({ items: pois }), []);
   assert.deepEqual(normalizeCaveList({ items: caves }), caves);
   assert.deepEqual(normalizeCaveList(caves), caves);
@@ -112,6 +114,14 @@ test('data normalization helpers preserve known array payloads and wrappers', ()
   assert.deepEqual(normalizeZoneList({ zones }), zones);
   assert.deepEqual(normalizeZoneList(zones), zones);
   assert.deepEqual(normalizeZoneList({ zones: null }), []);
+  assert.deepEqual(normalizeWarfrontData({ warfronts, labels: warfrontLabels }), {
+    warfronts,
+    labels: warfrontLabels
+  });
+  assert.deepEqual(normalizeWarfrontData(null), { warfronts: [], labels: [] });
+  assert.deepEqual(normalizeWarfrontData({ warfronts: {}, labels: null }), { warfronts: [], labels: [] });
+  assert.deepEqual(normalizeLocaleData({ locales, labels: localeLabels }), { locales, labels: localeLabels });
+  assert.deepEqual(normalizeLocaleData(null), { locales: [], labels: [] });
 });
 
 test('data normalization helpers build encounter and monster level maps', () => {
@@ -209,10 +219,30 @@ test('search helpers normalize, escape, and match names safely', () => {
   assert.equal(findSearchEntryByName(entries, 'unknown'), null);
 });
 
+test('search helpers match locale aliases', () => {
+  const locale = {
+    name: 'Zolkranion Village',
+    normalized: 'zolkranion village',
+    normalizedAliases: ['zolkarion village'],
+    type: 'locale'
+  };
+  assert.equal(findSearchEntryByName([locale], 'Zolkarion Village'), locale);
+
+  const suggestions = findSearchSuggestions({
+    term: 'zolkarion',
+    searchItems: [locale],
+    currentFloor: 'overworld',
+    floorForX: () => 'overworld',
+    searchTypeOrder: { locale: 1 },
+    limit: 4
+  });
+  assert.deepEqual(suggestions, [locale]);
+});
+
 test('search suggestions preserve ranking by match, type, floor, and name', () => {
   const searchItems = [
     { name: 'Beta Mine', normalized: 'beta mine', type: 'poi', x: 120, y: 10 },
-    { name: 'Alpha Town', normalized: 'alpha town', type: 'town', x: 4500, y: 20 },
+    { name: 'Alpha Locale', normalized: 'alpha locale', type: 'locale', x: 4500, y: 20 },
     { name: 'Alpha Mine', normalized: 'alpha mine', type: 'poi', x: 120, y: 30 },
     { name: 'Alpha Shrine', normalized: 'alpha shrine', type: 'poi', x: 4500, y: 35 },
     { name: 'Alpha Monster', normalized: 'alpha monster', type: 'monster' },
@@ -224,30 +254,30 @@ test('search suggestions preserve ranking by match, type, floor, and name', () =
     searchItems,
     currentFloor: 'overworld',
     floorForX: x => floorForX(x, 4096),
-    searchTypeOrder: { monster: 0, town: 1, poi: 2 },
+    searchTypeOrder: { monster: 0, locale: 1, poi: 2 },
     limit: 4
   });
 
   assert.deepEqual(
     suggestions.map(entry => entry.name),
-    ['Alpha Monster', 'Alpha Town', 'Alpha Mine', 'Alpha Shrine']
+    ['Alpha Monster', 'Alpha Locale', 'Alpha Mine', 'Alpha Shrine']
   );
 });
 
 test('search focus helpers resolve exact search types and entry focus targets', () => {
   const monster = { name: 'Death Tyrant', type: 'monster' };
-  const town = { name: 'Farmtown', type: 'town', x: 80, y: 120 };
+  const locale = { name: 'Farmtown', type: 'locale', x: 80, y: 120 };
   const poi = { name: 'Ancient Ruins', type: 'poi', x: 4500, y: 310 };
 
   assert.equal(searchTypeForRun({ term: '', exact: true, currentSearchType: 'monster', entry: monster }), null);
   assert.equal(searchTypeForRun({ term: 'death', exact: false, currentSearchType: null, entry: monster }), null);
   assert.equal(searchTypeForRun({ term: 'Death Tyrant', exact: true, currentSearchType: null, entry: monster }), 'monster');
-  assert.equal(searchTypeForRun({ term: 'Farmtown', exact: true, currentSearchType: 'poi', entry: town }), 'poi');
+  assert.equal(searchTypeForRun({ term: 'Farmtown', exact: true, currentSearchType: 'poi', entry: locale }), 'poi');
 
   assert.deepEqual(searchEntryFocusTarget({ entry: null, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
   assert.deepEqual(searchEntryFocusTarget({ entry: monster, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
   assert.deepEqual(searchEntryFocusTarget({ entry: { ...poi, x: Number.NaN }, currentZoom: 2, minZoom: 0, maxZoom: 6 }), { kind: 'matches' });
-  assert.deepEqual(searchEntryFocusTarget({ entry: town, currentZoom: 2, minZoom: 0, maxZoom: 6 }), {
+  assert.deepEqual(searchEntryFocusTarget({ entry: locale, currentZoom: 2, minZoom: 0, maxZoom: 6 }), {
     kind: 'point',
     x: 80,
     y: 120,
@@ -302,14 +332,14 @@ test('search focus helpers find clustered monster matches and label zoom', () =>
   );
 });
 
-test('search index helper builds sorted monster, town, and poi entries', () => {
+test('search index helper builds sorted monster, locale, and poi entries', () => {
   const encountersIndex = new Map([
     ['1,1', ['Death Tyrant', 'Goblin', 'death tyrant', '', null]],
     ['2,1', ['Wisp', 'Goblin']]
   ]);
-  const towns = [
-    { name: 'Farmtown', x: 80, y: 120 },
-    { name: 'Broken Town', x: Number.NaN, y: 30 },
+  const locales = [
+    { name: 'Farmtown', x: 80, y: 120, categoryLabel: 'Lawful Town' },
+    { name: 'Broken Locale', x: Number.NaN, y: 30 },
     { name: '', x: 10, y: 30 }
   ];
   const pois = [
@@ -324,7 +354,7 @@ test('search index helper builds sorted monster, town, and poi entries', () => {
 
   const items = buildSearchIndex({
     encountersIndex,
-    towns,
+    locales,
     pois,
     monsterLevelForName: name => levels.get(normalizeName(name)) ?? null
   });
@@ -334,11 +364,38 @@ test('search index helper builds sorted monster, town, and poi entries', () => {
     [
       ['Ancient Ruins', 'poi', 'ancient ruins', null, 4500, 310],
       ['Death Tyrant', 'monster', 'death tyrant', 45, null, null],
-      ['Farmtown', 'town', 'farmtown', null, 80, 120],
+      ['Farmtown', 'locale', 'farmtown', null, 80, 120],
       ['Goblin', 'monster', 'goblin', 5, null, null],
       ['Wisp', 'monster', 'wisp', 30, null, null]
     ]
   );
+});
+
+test('search index suppresses duplicate POI names and locale aliases', () => {
+  const items = buildSearchIndex({
+    encountersIndex: null,
+    locales: [{
+      name: 'Farmtown',
+      x: 96,
+      y: 128,
+      bounds: [80, 112, 112, 144],
+      categoryLabel: 'Lawful Town',
+      aliases: ['Farm Town']
+    }],
+    pois: [{ name: 'Farm Town', x: 85, y: 125 }]
+  });
+
+  assert.deepEqual(items, [{
+    name: 'Farmtown',
+    x: 96,
+    y: 128,
+    bounds: [80, 112, 112, 144],
+    categoryLabel: 'Lawful Town',
+    aliases: ['Farm Town'],
+    type: 'locale',
+    normalized: 'farmtown',
+    normalizedAliases: ['farm town']
+  }]);
 });
 
 test('url helpers read and persist search query state without dropping unrelated params', () => {
@@ -403,25 +460,26 @@ test('url helpers parse and normalize coordinate deep links', () => {
 });
 
 test('search layer helpers keep monster searches from hiding enabled labels', () => {
-  assert.equal(labelLayerKeyForSearchType('town'), 'towns');
+  assert.equal(labelLayerKeyForSearchType('town'), null);
   assert.equal(labelLayerKeyForSearchType('poi'), 'pois');
+  assert.equal(labelLayerKeyForSearchType('locale'), 'locales');
   assert.equal(labelLayerKeyForSearchType('monster'), null);
   assert.equal(labelLayerKeyForSearchType(null), null);
 
-  const townSearch = createSearchRegex('Farmtown', true);
+  const localeSearch = createSearchRegex('Farmtown', true);
   assert.deepEqual(
     searchLabelMarkerState({
       labelText: 'Farmtown',
-      searchRegex: townSearch,
-      activeSearchType: 'town'
+      searchRegex: localeSearch,
+      activeSearchType: 'locale'
     }),
     { matches: true, hidden: false }
   );
   assert.deepEqual(
     searchLabelMarkerState({
       labelText: 'Ancient Ruins',
-      searchRegex: townSearch,
-      activeSearchType: 'town'
+      searchRegex: localeSearch,
+      activeSearchType: 'locale'
     }),
     { matches: false, hidden: true }
   );

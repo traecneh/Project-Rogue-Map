@@ -14,6 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EXTRACTED_DIR = ROOT / ".analysis" / "rogue_data_vpack_2026-09-02"
 DEFAULT_MAP_IMAGE = ROOT / "img" / "Map_Combined.png"
 DEFAULT_MAP_PREVIEW = ROOT / "img" / "Map_Combined-preview.webp"
+DEFAULT_SAFE_ZONE_IMAGE = ROOT / "img" / "Safe_Zones.png"
+DEFAULT_LOCALE_IMAGE = ROOT / "img" / "Locales.png"
+DEFAULT_LOCALE_DATA = ROOT / "data" / "locales.json"
+DEFAULT_WARFRONT_IMAGE = ROOT / "img" / "Warfronts.png"
+DEFAULT_WARFRONT_DATA = ROOT / "data" / "warfronts.json"
 DEFAULT_DATA_DIR = ROOT / "data"
 
 
@@ -163,6 +168,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--extracted-dir", type=Path, default=DEFAULT_EXTRACTED_DIR)
     parser.add_argument("--map-image", type=Path, default=DEFAULT_MAP_IMAGE)
     parser.add_argument("--map-preview", type=Path, default=DEFAULT_MAP_PREVIEW)
+    parser.add_argument("--safe-zone-image", type=Path, default=DEFAULT_SAFE_ZONE_IMAGE)
+    parser.add_argument("--locale-image", type=Path, default=DEFAULT_LOCALE_IMAGE)
+    parser.add_argument("--locale-data", type=Path, default=DEFAULT_LOCALE_DATA)
+    parser.add_argument("--warfront-image", type=Path, default=DEFAULT_WARFRONT_IMAGE)
+    parser.add_argument("--warfront-data", type=Path, default=DEFAULT_WARFRONT_DATA)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--render-output", type=Path, default=None)
     parser.add_argument("--render-thumbnail", type=Path, default=None)
@@ -230,6 +240,64 @@ def main() -> int:
                 "map preview freshness",
                 True,
                 f"{args.map_preview} matches the current live map",
+            )
+        )
+        run_command(
+            [
+                sys.executable,
+                str(ROOT / "tools" / "generate_safezone_overlay.py"),
+                "--extracted-dir",
+                str(extracted_dir),
+                "--output",
+                str(args.safe_zone_image),
+                "--check",
+            ]
+        )
+        checks.append(
+            result(
+                "safe-zone overlay freshness",
+                True,
+                f"{args.safe_zone_image} matches the extracted client safe-zone grid",
+            )
+        )
+        run_command(
+            [
+                sys.executable,
+                str(ROOT / "tools" / "generate_locale_overlay.py"),
+                "--extracted-dir",
+                str(extracted_dir),
+                "--output-image",
+                str(args.locale_image),
+                "--output-data",
+                str(args.locale_data),
+                "--check",
+            ]
+        )
+        checks.append(
+            result(
+                "locale overlay freshness",
+                True,
+                f"{args.locale_image} and {args.locale_data} match the extracted client locale grid",
+            )
+        )
+        run_command(
+            [
+                sys.executable,
+                str(ROOT / "tools" / "generate_warfront_overlay.py"),
+                "--extracted-dir",
+                str(extracted_dir),
+                "--output-image",
+                str(args.warfront_image),
+                "--output-data",
+                str(args.warfront_data),
+                "--check",
+            ]
+        )
+        checks.append(
+            result(
+                "warfront overlay freshness",
+                True,
+                f"{args.warfront_image} and {args.warfront_data} match the extracted client warfront grid",
             )
         )
 

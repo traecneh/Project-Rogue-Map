@@ -1,9 +1,5 @@
 import { normalizeName } from './search-utils.js';
 
-export function normalizeTownList(raw) {
-  return normalizeArray(raw);
-}
-
 export function normalizePoiList(raw) {
   return normalizeArray(raw);
 }
@@ -24,6 +20,20 @@ export function normalizeCaveList(raw) {
 export function normalizeZoneList(raw) {
   if (Array.isArray(raw?.zones)) return raw.zones;
   return Array.isArray(raw) ? raw : [];
+}
+
+export function normalizeWarfrontData(raw) {
+  return {
+    warfronts: Array.isArray(raw?.warfronts) ? raw.warfronts : [],
+    labels: Array.isArray(raw?.labels) ? raw.labels : []
+  };
+}
+
+export function normalizeLocaleData(raw) {
+  return {
+    locales: Array.isArray(raw?.locales) ? raw.locales : [],
+    labels: Array.isArray(raw?.labels) ? raw.labels : []
+  };
 }
 
 export function normalizeEncounterIndex(raw) {

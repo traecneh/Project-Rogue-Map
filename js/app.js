@@ -11,6 +11,7 @@ import {
   FLOORS,
   IMG_PATH,
   INVERT_Y,
+  LOCALES_IMG_PATH,
   MATCH_ZINDEX_OFFSET,
   MIN_CHUNK_SCREEN_PX,
   MONSTER_FILTER_HINT_DEFAULT,
@@ -18,10 +19,12 @@ import {
   MONSTER_FILTER_HINT_UNAVAILABLE,
   MONSTER_OVERVIEW_MAX_SPAN,
   MONSTER_OVERVIEW_TARGET_PX,
+  SAFE_ZONE_IMG_PATH,
   SEARCH_CLUSTER_RADIUS,
   SEARCH_LABEL_MIN_PX,
   SEARCH_SUGGESTION_LIMIT,
   SEARCH_TYPE_ORDER,
+  WARFRONT_IMG_PATH,
   ZOOM_OUT_EXTRA
 } from './config.js';
 import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
@@ -78,10 +81,11 @@ import {
   normalizeCaveList,
   normalizeCrimList,
   normalizeEncounterIndex,
+  normalizeLocaleData,
   normalizeMonsterLevels,
   normalizePoiList,
   normalizePortalList,
-  normalizeTownList,
+  normalizeWarfrontData,
   normalizeZoneList
 } from './data-normalization.js';
 import {
@@ -120,6 +124,16 @@ import {
     maxBoundsViscosity: 1
   });
 
+  map.createPane('locales').style.zIndex         = 400;
+  map.getPane('locales').style.pointerEvents     = 'none';
+  map.createPane('warfronts').style.zIndex       = 405;
+  map.getPane('warfronts').style.pointerEvents   = 'none';
+  map.createPane('safe-zones').style.zIndex      = 410;
+  map.getPane('safe-zones').style.pointerEvents  = 'none';
+  map.createPane('warfront-labels').style.zIndex = 620;
+  map.getPane('warfront-labels').style.pointerEvents = 'none';
+  map.createPane('locale-labels').style.zIndex   = 622;
+  map.getPane('locale-labels').style.pointerEvents = 'none';
   map.createPane('routes').style.zIndex         = 640;
   map.createPane('zones').style.zIndex          = 642;
   map.createPane('zones-labels').style.zIndex   = 643;
@@ -127,7 +141,7 @@ import {
   map.createPane('crim').style.zIndex           = 649;
   map.createPane('labels-portals').style.zIndex = 652;
   map.createPane('portalLines').style.zIndex    = 653;  // interactive transport nodes (portals/caves)
-  map.createPane('labels-towns').style.zIndex   = 655;
+  map.createPane('labels-places').style.zIndex = 655;
   map.createPane('elite').style.zIndex          = 670;
   map.createPane('deep-link').style.zIndex      = 680;
   map.createPane('floor-mask').style.zIndex     = 900;
@@ -154,8 +168,7 @@ import {
     })
   };
 
-  // -------- Layers (only Towns added by default) --------
-  const towns         = L.layerGroup().addTo(map); // ON by default
+  // -------- Layers --------
   const portalsLblFG  = L.layerGroup();            // OFF at load
   const portalLinesFG = L.featureGroup();          // OFF at load
   const routes        = L.featureGroup().addTo(map);
@@ -163,11 +176,17 @@ import {
   const chunkFG       = L.featureGroup();          // OFF at load (Monsters)
   const cavesFG       = L.featureGroup();          // OFF at load
   const crimFG        = L.featureGroup();          // OFF at load
-  const poisFG        = L.layerGroup().addTo(map); // ON by default
+  const poisFG        = L.layerGroup();            // OFF at load
   const zonesFG       = L.featureGroup();          // OFF at load
+  const localeLabelsFG = L.layerGroup();           // ON after locale data loads
+  const warfrontLabelsFG = L.layerGroup();         // OFF at load
   const eliteFG       = L.featureGroup().addTo(map);
   const deepLinkFG    = L.featureGroup().addTo(map);
+  const localeSearchFG = L.featureGroup().addTo(map);
   const floorMaskFG   = L.featureGroup().addTo(map);
+  let safeZonesOverlay = null;
+  let localeOverlay = null;
+  let warfrontOverlay = null;
   let coordinateUrlMarker = null;
 
   // -------- UI hooks --------
@@ -175,12 +194,14 @@ import {
   const getZoneColor = () => readCssVar('--zone-color') || '#f59e0b';
   const getCrimColor = () => readCssVar('--crim-color') || '#fb7185';
 
-  // Pills (defaults: Towns ON, others OFF)
+  // Pills (default: Locales ON; all other map layers OFF)
   const pillMonsters = $('#pillMonsters');
-  const pillTowns    = $('#pillTowns');
   const pillPortals  = $('#pillPortals');
   const pillCaves    = $('#pillCaves');
   const pillZones    = $('#pillZones');
+  const pillLocales  = $('#pillLocales');
+  const pillSafeZones = $('#pillSafeZones');
+  const pillWarfronts = $('#pillWarfronts');
   const pillPois     = $('#pillPois');
   const pillCrim     = $('#pillCrim');
   const btnFloorOverworld = $('#btnFloorOverworld');
@@ -556,8 +577,7 @@ import {
   syncFloorButtons();
 
   const paneByKind = {
-    town: 'labels-towns',
-    poi:  'labels-towns',
+    poi:  'labels-places',
     portal: 'labels-portals'
   };
 
@@ -584,7 +604,7 @@ import {
 
   function vibeTargets() {
     const combined = [
-      ...(Array.isArray(window.__townDataCache) ? window.__townDataCache : []),
+      ...(Array.isArray(window.__localeSearchCache) ? window.__localeSearchCache : []),
       ...(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [])
     ].filter(it => Number.isFinite(it?.x) && Number.isFinite(it?.y) && floorForX(it.x) === currentFloor);
     return combined;
@@ -718,6 +738,7 @@ import {
   let monsterFilterExclusive = false;
   let currentSearchRegex = null;
   let currentSearchType = null;
+  let currentSearchEntry = null;
   let searchItems = [];           // [{ name, normalized, level, type, x?, y? }]
 
   function namesForChunk(cx, cy) {
@@ -742,7 +763,7 @@ import {
   function buildSearchIndex() {
     searchItems = buildSearchItems({
       encountersIndex,
-      towns: Array.isArray(window.__townDataCache) ? window.__townDataCache : [],
+      locales: Array.isArray(window.__localeSearchCache) ? window.__localeSearchCache : [],
       pois: Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [],
       monsterLevelForName: monsterLevel
     });
@@ -1381,8 +1402,92 @@ import {
     }
   }
 
+  function renderWarfrontLabels(data) {
+    warfrontLabelsFG.clearLayers();
+    const definitions = new Map(data.warfronts.map(item => [item?.id, item]));
+    const allowedPatterns = new Set([
+      'diagonal-down',
+      'diagonal-up',
+      'horizontal',
+      'vertical',
+      'cross-diagonal',
+      'dots',
+      'grid'
+    ]);
+
+    for (const label of data.labels) {
+      if (!label?.primary || !Number.isFinite(label.x) || !Number.isFinite(label.y)) continue;
+      const definition = definitions.get(label.id);
+      const color = /^#[0-9a-f]{6}$/i.test(definition?.color || '') ? definition.color : '#ffffff';
+      const pattern = allowedPatterns.has(definition?.pattern) ? definition.pattern : 'grid';
+      const name = typeof label.name === 'string' ? label.name : definition?.label;
+      if (!name) continue;
+
+      L.marker(toLL(label.x, label.y), {
+        pane: 'warfront-labels',
+        interactive: false,
+        keyboard: false,
+        bubblingMouseEvents: false,
+        icon: L.divIcon({
+          className: 'warfront-label-icon',
+          html: `<div class="warfront-label" style="--warfront-color:${color}"><span class="warfront-label-pattern warfront-pattern-${pattern}" aria-hidden="true"></span><span>${escHtml(name)}</span></div>`,
+          iconSize: null
+        })
+      }).addTo(warfrontLabelsFG);
+    }
+  }
+
+  function renderLocaleLabels(data) {
+    localeLabelsFG.clearLayers();
+    window.__localeSearchCache = [];
+    const definitions = new Map(data.locales.map(item => [item?.id, item]));
+    const allowedPatterns = new Set([
+      'diagonal-down',
+      'cross-diagonal',
+      'grid',
+      'dots',
+      'horizontal'
+    ]);
+
+    for (const label of data.labels) {
+      if (!label?.primary || !Number.isFinite(label.x) || !Number.isFinite(label.y)) continue;
+      const definition = definitions.get(label.id);
+      const color = /^#[0-9a-f]{6}$/i.test(definition?.color || '') ? definition.color : '#e5e7eb';
+      const pattern = allowedPatterns.has(definition?.pattern) ? definition.pattern : 'grid';
+      const name = typeof label.name === 'string' ? label.name : definition?.name;
+      if (!name) continue;
+
+      const categoryLabel = typeof definition?.category_label === 'string'
+        ? definition.category_label
+        : 'Locale';
+      const bounds = Array.isArray(label.bounds) && label.bounds.length === 4 && label.bounds.every(Number.isFinite)
+        ? label.bounds
+        : null;
+      window.__localeSearchCache.push({
+        name,
+        x: label.x,
+        y: label.y,
+        bounds,
+        floor: label.floor,
+        categoryLabel,
+        aliases: Array.isArray(definition?.aliases) ? definition.aliases : []
+      });
+
+      L.marker(toLL(label.x, label.y), {
+        pane: 'locale-labels',
+        interactive: false,
+        keyboard: false,
+        bubblingMouseEvents: false,
+        icon: nameIcon(
+          `<span class="locale-label-content" style="--locale-color:${color}" aria-label="${escHtml(categoryLabel)}: ${escHtml(name)}"><span class="locale-label-pattern locale-pattern-${pattern}" aria-hidden="true"></span><span class="n locale">${escHtml(name)}</span></span>`
+        )
+      }).addTo(localeLabelsFG);
+    }
+  }
+
   // -------- Layer toggles --------
   function setLayerVisible(layer, on) {
+    if (!layer) return;
     if (on && !map.hasLayer(layer)) map.addLayer(layer);
     if (!on && map.hasLayer(layer)) map.removeLayer(layer);
     rerunCollision();
@@ -1397,12 +1502,6 @@ import {
     } else {
       clearMonsterMarkers();
     }
-  });
-
-  pillTowns?.addEventListener('click', () => {
-    const on = !isOn(pillTowns);
-    setPill(pillTowns, on);
-    setLayerVisible(towns, on);
   });
 
   pillPortals?.addEventListener('click', () => {
@@ -1436,7 +1535,27 @@ import {
     setLayerVisible(zonesFG, on);
   });
 
-  // -------- Search (affects towns/portal labels + chunk labels) --------
+  pillLocales?.addEventListener('click', () => {
+    const on = !isOn(pillLocales);
+    setPill(pillLocales, on);
+    setLayerVisible(localeOverlay, on);
+    setLayerVisible(localeLabelsFG, on);
+  });
+
+  pillSafeZones?.addEventListener('click', () => {
+    const on = !isOn(pillSafeZones);
+    setPill(pillSafeZones, on);
+    setLayerVisible(safeZonesOverlay, on);
+  });
+
+  pillWarfronts?.addEventListener('click', () => {
+    const on = !isOn(pillWarfronts);
+    setPill(pillWarfronts, on);
+    setLayerVisible(warfrontOverlay, on);
+    setLayerVisible(warfrontLabelsFG, on);
+  });
+
+  // -------- Search (affects place/portal labels + chunk labels) --------
   function setSearchExpanded(expanded) {
     if (searchInput) searchInput.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   }
@@ -1481,7 +1600,8 @@ import {
       const isMonster = entry.type === 'monster';
       const lvl = isMonster && Number.isFinite(entry.level) ? `<span class="meta">Lv ${entry.level}</span>` : '';
       const floorMeta = !isMonster && Number.isFinite(entry.x) ? ` · ${floorLabelForX(entry.x)}` : '';
-      const tag = !isMonster ? `<span class="meta">${entry.type === 'town' ? 'Town' : 'POI'}${floorMeta}</span>` : '';
+      const entryTypeLabel = entry.type === 'poi' ? 'POI' : (entry.categoryLabel || 'Locale');
+      const tag = !isMonster ? `<span class="meta">${escHtml(entryTypeLabel)}${floorMeta}</span>` : '';
       btn.innerHTML = `<span class="name">${escHtml(entry.name)}</span>${lvl || tag}`;
       btn.addEventListener('click', () => commitSearch(entry, { focus: true }));
       frag.appendChild(btn);
@@ -1506,8 +1626,8 @@ import {
     return findSearchEntryInList(searchItems, name);
   }
 
-  function activeSearchTypeForRun(term, exact) {
-    const entry = exact ? findSearchEntryByName(term) : null;
+  function activeSearchTypeForRun(term, exact, preferredEntry = null) {
+    const entry = exact ? (preferredEntry || findSearchEntryByName(term)) : null;
     currentSearchType = searchTypeForRun({
       term,
       exact,
@@ -1519,11 +1639,35 @@ import {
 
   function ensureLabelLayerOn(type) {
     const layerKey = labelLayerKeyForSearchType(type);
-    if (layerKey === 'towns') {
-      if (!isOn(pillTowns)) { setPill(pillTowns, true); setLayerVisible(towns, true); }
-    } else if (layerKey === 'pois') {
+    if (layerKey === 'pois') {
       if (!isOn(pillPois)) { setPill(pillPois, true); setLayerVisible(poisFG, true); }
+    } else if (layerKey === 'locales') {
+      if (!isOn(pillLocales)) {
+        setPill(pillLocales, true);
+        setLayerVisible(localeOverlay, true);
+        setLayerVisible(localeLabelsFG, true);
+      }
     }
+  }
+
+  function showLocaleSearchHighlight(entry) {
+    localeSearchFG.clearLayers();
+    if (entry?.type !== 'locale') return;
+    const bounds = entry.bounds;
+    if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite)) return;
+    const [x0, y0, x1, y1] = bounds;
+    L.rectangle(L.latLngBounds(toLL(x0, y0), toLL(x1, y1)), {
+      pane: 'deep-link',
+      className: 'locale-search-highlight',
+      color: '#ffd60a',
+      weight: 4,
+      opacity: 1,
+      dashArray: '9 6',
+      fill: true,
+      fillColor: '#ffd60a',
+      fillOpacity: 0.05,
+      interactive: false
+    }).addTo(localeSearchFG);
   }
 
   function focusOnEntry(entry) {
@@ -1545,6 +1689,7 @@ import {
     searchInput.value = clean;
     hideSearchSuggestions();
     currentSearchType = clean ? (entry?.type || null) : null;
+    currentSearchEntry = clean ? (entry || null) : null;
     if (!clean) {
       runSearch(false);
       return;
@@ -1554,18 +1699,25 @@ import {
     } else {
       ensureLabelLayerOn(entry?.type);
     }
-    runSearch(exact);
+    runSearch(exact, entry);
     if (focus) focusOnEntry(entry);
   }
 
-  function runSearch(exact = false) {
+  function runSearch(exact = false, preferredEntry = null) {
     const q = (searchInput?.value || '').trim();
     persistSearchToUrl(q);
-    currentSearchRegex = createSearchRegex(q, exact);
-    if (!currentSearchRegex) currentSearchType = null;
-    const activeSearchType = activeSearchTypeForRun(q, exact);
+    const exactEntry = exact
+      ? (preferredEntry || (currentSearchEntry?.name === q ? currentSearchEntry : null) || findSearchEntryByName(q))
+      : null;
+    currentSearchRegex = createSearchRegex(exactEntry?.name || q, exact);
+    if (!currentSearchRegex) {
+      currentSearchType = null;
+      currentSearchEntry = null;
+    }
+    const activeSearchType = activeSearchTypeForRun(q, exact, exactEntry);
+    showLocaleSearchHighlight(exactEntry);
 
-    const markerGroups = [towns, portalsLblFG, poisFG];
+    const markerGroups = [portalsLblFG, poisFG, localeLabelsFG];
 
     // reset
     markerGroups.forEach(g => g.eachLayer(layer => {
@@ -1604,9 +1756,12 @@ import {
     if (e.key === 'Enter') {
       e.preventDefault();
       const first = searchSuggestions?.querySelector('.search-suggestion');
-      const candidate = first?.dataset?.name || (searchInput.value || '').trim();
-      if (candidate) commitSearch(findSearchEntryByName(candidate) || candidate, { focus: true, exact: true });
-      else hideSearchSuggestions();
+      if (first) first.click();
+      else {
+        const candidate = (searchInput.value || '').trim();
+        if (candidate) commitSearch(findSearchEntryByName(candidate) || candidate, { focus: true, exact: true });
+        else hideSearchSuggestions();
+      }
       e.stopPropagation();
     } else if (e.key === 'Escape') {
       hideSearchSuggestions();
@@ -1678,8 +1833,8 @@ import {
     if (!window.__PROJECT_ROGUE_TEST_HOOKS__) return;
     window.__PROJECT_ROGUE_TEST_HOOKS__.api = {
       commitSearch,
-      groups: { towns, poisFG },
-      elements: { searchInput, pillTowns, pillPois }
+      groups: { localeLabelsFG, poisFG },
+      elements: { searchInput, pillLocales, pillPois }
     };
   }
 
@@ -1692,6 +1847,21 @@ import {
 
     const bounds = [[0, 0], [IMG_H, IMG_W]];
     const overlay = L.imageOverlay(IMG_PATH, bounds, { className: 'map-image', interactive: false }).addTo(map);
+    safeZonesOverlay = L.imageOverlay(SAFE_ZONE_IMG_PATH, bounds, {
+      pane: 'safe-zones',
+      className: 'safe-zone-image',
+      interactive: false
+    });
+    localeOverlay = L.imageOverlay(LOCALES_IMG_PATH, bounds, {
+      pane: 'locales',
+      className: 'locale-image',
+      interactive: false
+    });
+    warfrontOverlay = L.imageOverlay(WARFRONT_IMG_PATH, bounds, {
+      pane: 'warfronts',
+      className: 'warfront-image',
+      interactive: false
+    });
 
     // final mapping (apply Y flip if requested)
     toLL = (x, y) => L.latLng(mapLat(y), x);
@@ -1704,6 +1874,10 @@ import {
     map.fitBounds(initialFloorBounds, { animate: false });
     map.setZoom(floorMinZoom);
 
+    if (isOn(pillSafeZones)) setLayerVisible(safeZonesOverlay, true);
+    if (isOn(pillLocales)) setLayerVisible(localeOverlay, true);
+    if (isOn(pillWarfronts)) setLayerVisible(warfrontOverlay, true);
+
     overlay.once('load', () => {
       const el = overlay.getElement();
       if (!el) return;
@@ -1712,23 +1886,16 @@ import {
     });
 
     Promise.all([
-      fetch(DATA.towns).then(r => r.json()).catch(() => []),
       fetch(DATA.portals).then(r => r.json()).catch(() => []),
       fetch(DATA.encounters).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.caves).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.zones).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.pois).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(DATA.crim).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(DATA.monsterLvls).then(r => r.ok ? r.json() : null).catch(() => null)
-    ]).then(([ts, portalsJson, enc, caves, zonesJson, poisJson, crimJson, monsterLvlJson]) => {
-      // Towns (ON by default)
-      window.__townDataCache = normalizeTownList(ts);
-      for (const it of window.__townDataCache) {
-        const { name, x, y } = it || {};
-        if (typeof x !== 'number' || typeof y !== 'number' || !name) continue;
-        makeLabel(x, y, name, 'town').addTo(towns);
-      }
-
+      fetch(DATA.monsterLvls).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(DATA.locales).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(DATA.warfronts).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([portalsJson, enc, caves, zonesJson, poisJson, crimJson, monsterLvlJson, localeJson, warfrontJson]) => {
       // Portals (build once; layers OFF until toggled)
       renderPortals(normalizePortalList(portalsJson));
 
@@ -1740,6 +1907,12 @@ import {
 
       // Zones (build once; layer OFF until toggled)
       renderZones(normalizeZoneList(zonesJson));
+
+      // Locales pair client-derived regions with canonical names and are enabled by default.
+      renderLocaleLabels(normalizeLocaleData(localeJson));
+
+      // Warfront labels pair with the generated raster overlay and stay OFF until toggled.
+      renderWarfrontLabels(normalizeWarfrontData(warfrontJson));
 
       // POIs (build once; layer OFF until toggled)
       window.__poiDataCache = normalizePoiList(poisJson);
@@ -1757,23 +1930,36 @@ import {
       }
 
       // Set initial pill states
-      setPill(pillTowns, true);
       setPill(pillMonsters, false);
-      setPill(pillPortals, true);
-      setPill(pillCaves, true);
-      setPill(pillPois, true);
+      setPill(pillPortals, false);
+      setPill(pillCaves, false);
+      setPill(pillPois, false);
       setPill(pillCrim, false);
       setPill(pillZones, false);
-      setLayerVisible(portalsLblFG, true);
-      setLayerVisible(portalLinesFG, true);
-      setLayerVisible(cavesFG, true);
+      setPill(pillLocales, true);
+      setPill(pillSafeZones, false);
+      setPill(pillWarfronts, false);
+      setLayerVisible(safeZonesOverlay, false);
+      setLayerVisible(localeOverlay, true);
+      setLayerVisible(localeLabelsFG, true);
+      setLayerVisible(warfrontOverlay, false);
+      setLayerVisible(warfrontLabelsFG, false);
+      setLayerVisible(poisFG, false);
+      setLayerVisible(portalsLblFG, false);
+      setLayerVisible(portalLinesFG, false);
+      setLayerVisible(cavesFG, false);
       const hasActiveSearch = !!(searchInput?.value && searchInput.value.trim());
-      if (hasActiveSearch) runSearch(startedWithSearch); // apply search to freshly-added labels
-
       let refreshedViaSearch = false;
       if (startedWithSearch && hasActiveSearch) {
-        ensureMonstersLayerOn(true);
-        refreshedViaSearch = true;
+        const entry = findSearchEntryByName(searchInput.value);
+        if (entry?.type === 'monster') {
+          ensureMonstersLayerOn(true);
+          refreshedViaSearch = true;
+        } else {
+          ensureLabelLayerOn(entry?.type);
+        }
+        currentSearchEntry = entry;
+        runSearch(true, entry); // apply the deep-linked search to freshly-added labels
       }
 
       const focusedCoordinateTarget = startedWithCoordinateTarget
@@ -1782,7 +1968,8 @@ import {
       if (focusedCoordinateTarget) {
         setCoordDisplay(focusedCoordinateTarget.x, focusedCoordinateTarget.y);
       } else if (startedWithSearch && hasActiveSearch) {
-        const focused = focusOnSearchMatches();
+        const entry = findSearchEntryByName(searchInput.value);
+        const focused = entry ? focusOnEntry(entry) : focusOnSearchMatches();
         if (!focused) {
           const candidates = vibeTargets();
           const randomSpot = randomArrayItem(candidates);
@@ -1969,12 +2156,12 @@ import {
     drawRespawnLine(e.latlng);
   });
 
-  // -------- Collision hider (towns + portal labels) --------
+  // -------- Collision hider (map labels) --------
   function markerPriority(spanEl) {
     let score = 1;
     if (spanEl.classList.contains('portal')) score = 2;
     if (spanEl.classList.contains('poi'))    score = 2;
-    if (spanEl.classList.contains('town'))   score = 3;
+    if (spanEl.classList.contains('locale')) score = 4;
     if (spanEl.classList.contains('match'))  score += 100;
     return score;
   }
@@ -2005,7 +2192,7 @@ import {
 
         const pt = map.latLngToLayerPoint(m.getLatLng());
         const w  = el.offsetWidth  || (span.textContent.length * 7 + 6);
-        const h  = el.offsetHeight || (span.classList.contains('town') ? 24 : 14);
+        const h  = el.offsetHeight || (span.classList.contains('locale') ? 20 : 14);
         const r  = { x: pt.x, y: pt.y, w, h, score: markerPriority(span) };
 
         if (r.x > size.x || r.y > size.y || r.x + r.w < 0 || r.y + r.h < 0) {
@@ -2025,7 +2212,7 @@ import {
             const bin = grid[idx(cx0 + gx, cy0 + gy)];
             for (const o of bin) {
               if (!(r.x >= o.x + o.w || r.x + r.w <= o.x || r.y >= o.y + o.h || r.y + r.h <= o.y)) {
-                // prefer higher score (towns > portals, matches > non-matches)
+                // Prefer higher score (locales > place labels, matches > non-matches).
                 if (o.score >= r.score) { collide = true; break; }
                 // else replace existing with current
                 o.el.style.visibility = 'hidden';
@@ -2048,8 +2235,9 @@ import {
       });
     };
 
-    consider(towns);
+    consider(poisFG);
     consider(portalsLblFG);
+    consider(localeLabelsFG);
     adjustFloorLabelOffsets();
   }
 
@@ -2100,9 +2288,9 @@ import {
       });
     };
 
-    adjustGroup(towns);
     adjustGroup(portalsLblFG);
     adjustGroup(poisFG);
+    adjustGroup(localeLabelsFG);
   }
 
   // -------- Map change hooks --------

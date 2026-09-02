@@ -15,9 +15,37 @@ test('future update runbook documents the full safe map update path', () => {
   assert.match(runbook, /python tools\\render_map_candidate\.py/);
   assert.match(runbook, /--underground-transform identity/);
   assert.match(runbook, /--allow-live-output/);
+  assert.match(runbook, /python tools\\generate_safezone_overlay\.py/);
+  assert.match(runbook, /python tools\\generate_locale_overlay\.py/);
+  assert.match(runbook, /locales\.json/);
+  assert.match(runbook, /python tools\\generate_warfront_overlay\.py/);
+  assert.match(runbook, /warfronts\.json/);
   assert.match(runbook, /python tools\\run_map_update_checks\.py/);
   assert.match(runbook, /powershell -ExecutionPolicy Bypass -File tools\\run_all_checks\.ps1/);
   assert.match(runbook, /node tools\\deploy_smoke\.mjs/);
+});
+
+test('generated locale metadata preserves the confirmed classifications and search geometry', () => {
+  const data = JSON.parse(readText('data/locales.json'));
+  const byId = new Map(data.locales.map(locale => [locale.id, locale]));
+
+  assert.equal(data.locales.length, 67);
+  assert.equal(data.locales.filter(locale => locale.chunks > 0).length, 62);
+  assert.deepEqual(data.locales.filter(locale => locale.chunks === 0).map(locale => locale.id), [45, 51, 52, 59, 66]);
+  assert.equal(byId.get(10).category_label, 'Criminal Town');
+  assert.equal(byId.get(34).category_label, 'Criminal Town');
+  assert.equal(byId.get(4).category_label, 'Lawful Town');
+  assert.equal(byId.get(6).category_label, 'Lawful Town');
+  assert.equal(byId.get(15).category_label, 'Lawful Town');
+  assert.equal(byId.get(16).category_label, 'Lawful Town');
+  assert.equal(byId.get(26).category_label, 'Point of Interest');
+  assert.ok(data.labels.every(label => (
+    Number.isFinite(label.x)
+    && Number.isFinite(label.y)
+    && Array.isArray(label.bounds)
+    && label.bounds.length === 4
+    && label.bounds.every(Number.isFinite)
+  )));
 });
 
 test('local checks workflow runs the repository-contained CI verification script', () => {

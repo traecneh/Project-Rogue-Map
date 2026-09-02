@@ -1,14 +1,18 @@
 export const IMG_PATH = './img/Map_Combined.png';
+export const LOCALES_IMG_PATH = './img/Locales.png';
+export const SAFE_ZONE_IMG_PATH = './img/Safe_Zones.png';
+export const WARFRONT_IMG_PATH = './img/Warfronts.png';
 
 export const DATA = {
-  towns: './data/towns.json',
   portals: './data/portals.json',
   encounters: './data/encounters.json',
   caves: './data/caves.json',
   zones: './data/zones.json',
   pois: './data/poi.json',
   crim: './data/crim_spawns.json',
-  monsterLvls: './data/monster_levels.json'
+  locales: './data/locales.json',
+  monsterLvls: './data/monster_levels.json',
+  warfronts: './data/warfronts.json'
 };
 
 export const INVERT_Y = true;
@@ -34,4 +38,4 @@ export const MONSTER_OVERVIEW_MAX_SPAN = 32;
 export const SEARCH_LABEL_MIN_PX = MIN_CHUNK_SCREEN_PX + 6;
 export const SEARCH_CLUSTER_RADIUS = 1;
 export const SEARCH_SUGGESTION_LIMIT = 12;
-export const SEARCH_TYPE_ORDER = { monster: 0, town: 1, poi: 2 };
+export const SEARCH_TYPE_ORDER = { monster: 0, locale: 1, poi: 2 };

@@ -2,7 +2,7 @@ import { normalizeName } from './search-utils.js';
 
 export function buildSearchIndex({
   encountersIndex,
-  towns,
+  locales,
   pois,
   monsterLevelForName = () => null
 }) {
@@ -12,7 +12,10 @@ export function buildSearchIndex({
     if (!payload || typeof payload.name !== 'string') return;
     const normalized = normalizeName(payload.name);
     if (!normalized) return;
-    items.push({ ...payload, normalized });
+    const normalizedAliases = Array.isArray(payload.aliases)
+      ? payload.aliases.map(normalizeName).filter(Boolean)
+      : [];
+    items.push({ ...payload, normalized, normalizedAliases });
   };
 
   const monsterSeen = new Set();
@@ -30,18 +33,26 @@ export function buildSearchIndex({
     }
   }
 
-  addLabeledPoints(items, towns, 'town');
-  addLabeledPoints(items, pois, 'poi');
+  const localeNames = new Set();
+  for (const item of locales || []) {
+    const { name, x, y } = item || {};
+    if (typeof name !== 'string' || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+    add({ ...item, type: 'locale' });
+    localeNames.add(normalizeName(name));
+    for (const alias of item.aliases || []) localeNames.add(normalizeName(alias));
+  }
+
+  addLabeledPoints(items, pois, 'poi', localeNames);
 
   return items.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function addLabeledPoints(items, records, type) {
+function addLabeledPoints(items, records, type, excludedNames = new Set()) {
   for (const item of records || []) {
     const { name, x, y } = item || {};
     if (typeof name !== 'string' || !Number.isFinite(x) || !Number.isFinite(y)) continue;
     const normalized = normalizeName(name);
-    if (!normalized) continue;
-    items.push({ name, x, y, type, normalized });
+    if (!normalized || excludedNames.has(normalized)) continue;
+    items.push({ name, x, y, type, normalized, normalizedAliases: [] });
   }
 }

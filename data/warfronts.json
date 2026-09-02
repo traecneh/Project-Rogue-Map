@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-02T01:35:28Z",
+  "source": "warfronts.json",
+  "source_encoding": "row-major signed-int16 little-endian; warfront id per chunk, 0 means none",
+  "chunk_size": 16,
+  "map_width": 8192,
+  "map_height": 4096,
+  "source_grid_height": 512,
+  "warfronts": [
+    {
+      "id": 1,
+      "name": "Abyssal Warfront",
+      "label": "Abyssal",
+      "color": "#a855f7",
+      "pattern": "diagonal-down",
+      "chunks": 1869,
+      "floors": {
+        "overworld": 989,
+        "underground": 880
+      }
+    },
+    {
+      "id": 2,
+      "name": "Badlands Warfront",
+      "label": "Badlands",
+      "color": "#56b4e9",
+      "pattern": "diagonal-up",
+      "chunks": 1571,
+      "floors": {
+        "overworld": 929,
+        "underground": 642
+      }
+    },
+    {
+      "id": 3,
+      "name": "Banished Warfront",
+      "label": "Banished",
+      "color": "#009e73",
+      "pattern": "horizontal",
+      "chunks": 425,
+      "floors": {
+        "overworld": 271,
+        "underground": 154
+      }
+    },
+    {
+      "id": 4,
+      "name": "Necropolitan Warfront",
+      "label": "Necropolitan",
+      "color": "#e69f00",
+      "pattern": "vertical",
+      "chunks": 1140,
+      "floors": {
+        "overworld": 816,
+        "underground": 324
+      }
+    },
+    {
+      "id": 5,
+      "name": "Talazarian Warfront",
+      "label": "Talazarian",
+      "color": "#f0e442",
+      "pattern": "cross-diagonal",
+      "chunks": 568,
+      "floors": {
+        "overworld": 373,
+        "underground": 195
+      }
+    },
+    {
+      "id": 6,
+      "name": "Frozen Warfront",
+      "label": "Frozen",
+      "color": "#0072b2",
+      "pattern": "dots",
+      "chunks": 686,
+      "floors": {
+        "overworld": 415,
+        "underground": 271
+      }
+    },
+    {
+      "id": 7,
+      "name": "Toxic Warfront",
+      "label": "Toxic",
+      "color": "#d55e00",
+      "pattern": "grid",
+      "chunks": 496,
+      "floors": {
+        "overworld": 211,
+        "underground": 285
+      }
+    }
+  ],
+  "labels": [
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "overworld",
+      "x": 3000,
+      "y": 744,
+      "component_chunks": 527,
+      "primary": true
+    },
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "overworld",
+      "x": 3144,
+      "y": 1256,
+      "component_chunks": 405,
+      "primary": false
+    },
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "overworld",
+      "x": 3688,
+      "y": 2248,
+      "component_chunks": 57,
+      "primary": false
+    },
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "underground",
+      "x": 7224,
+      "y": 1256,
+      "component_chunks": 340,
+      "primary": true
+    },
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "underground",
+      "x": 7288,
+      "y": 744,
+      "component_chunks": 323,
+      "primary": false
+    },
+    {
+      "id": 1,
+      "name": "Abyssal",
+      "floor": "underground",
+      "x": 7000,
+      "y": 744,
+      "component_chunks": 217,
+      "primary": false
+    },
+    {
+      "id": 2,
+      "name": "Badlands",
+      "floor": "overworld",
+      "x": 1368,
+      "y": 1176,
+      "component_chunks": 929,
+      "primary": true
+    },
+    {
+      "id": 2,
+      "name": "Badlands",
+      "floor": "underground",
+      "x": 5800,
+      "y": 1176,
+      "component_chunks": 534,
+      "primary": true
+    },
+    {
+      "id": 2,
+      "name": "Badlands",
+      "floor": "underground",
+      "x": 5320,
+      "y": 1144,
+      "component_chunks": 108,
+      "primary": false
+    },
+    {
+      "id": 3,
+      "name": "Banished",
+      "floor": "overworld",
+      "x": 1096,
+      "y": 1960,
+      "component_chunks": 271,
+      "primary": true
+    },
+    {
+      "id": 3,
+      "name": "Banished",
+      "floor": "underground",
+      "x": 5256,
+      "y": 1928,
+      "component_chunks": 154,
+      "primary": true
+    },
+    {
+      "id": 4,
+      "name": "Necropolitan",
+      "floor": "overworld",
+      "x": 296,
+      "y": 2312,
+      "component_chunks": 816,
+      "primary": true
+    },
+    {
+      "id": 4,
+      "name": "Necropolitan",
+      "floor": "underground",
+      "x": 4440,
+      "y": 2232,
+      "component_chunks": 324,
+      "primary": true
+    },
+    {
+      "id": 5,
+      "name": "Talazarian",
+      "floor": "overworld",
+      "x": 232,
+      "y": 1528,
+      "component_chunks": 373,
+      "primary": true
+    },
+    {
+      "id": 5,
+      "name": "Talazarian",
+      "floor": "underground",
+      "x": 4328,
+      "y": 1592,
+      "component_chunks": 195,
+      "primary": true
+    },
+    {
+      "id": 6,
+      "name": "Frozen",
+      "floor": "overworld",
+      "x": 1864,
+      "y": 3880,
+      "component_chunks": 415,
+      "primary": true
+    },
+    {
+      "id": 6,
+      "name": "Frozen",
+      "floor": "underground",
+      "x": 5960,
+      "y": 3880,
+      "component_chunks": 271,
+      "primary": true
+    },
+    {
+      "id": 7,
+      "name": "Toxic",
+      "floor": "overworld",
+      "x": 1672,
+      "y": 2984,
+      "component_chunks": 211,
+      "primary": true
+    },
+    {
+      "id": 7,
+      "name": "Toxic",
+      "floor": "underground",
+      "x": 5784,
+      "y": 2936,
+      "component_chunks": 285,
+      "primary": true
+    }
+  ]
+}

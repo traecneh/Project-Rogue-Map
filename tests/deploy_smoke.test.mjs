@@ -30,18 +30,24 @@ test('detects module app script and rejects the old classic app script', () => {
 });
 
 test('validates the config module content', () => {
-  assert.deepEqual(validateConfigModule('export const DATA = {}; export const FLOORS = {};'), []);
+  assert.deepEqual(
+    validateConfigModule('export const DATA = {}; export const FLOORS = {}; export const LOCALES_IMG_PATH = ""; export const SAFE_ZONE_IMG_PATH = ""; export const WARFRONT_IMG_PATH = "";'),
+    []
+  );
   assert.deepEqual(validateConfigModule('export const DATA = {};'), [
-    'js/config.js did not contain the expected FLOORS export'
+    'js/config.js did not contain the expected FLOORS export',
+    'js/config.js did not contain the expected SAFE_ZONE_IMG_PATH export',
+    'js/config.js did not contain the expected LOCALES_IMG_PATH export',
+    'js/config.js did not contain the expected WARFRONT_IMG_PATH export'
   ]);
 });
 
 test('runDeploySmoke checks index, config, app, and map image assets', async () => {
   const responses = new Map([
     ['https://example.test/map/', response(200, '<script type="module" src="./js/app.js"></script>')],
-    ['https://example.test/map/js/config.js', response(200, 'export const DATA = {}; export const FLOORS = {};')],
-    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { buildSearchIndex } from './search-index.js'; import { chunkMonsterNames } from './chunk-label-state.js'; import { searchTypeForRun } from './search-focus-state.js'; import { normalizeTownList } from './data-normalization.js'; import { splitPortalItems } from './portal-state.js'; import { transportFocusZoom } from './transport-state.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
-    ['https://example.test/map/js/data-normalization.js', response(200, 'export function normalizeTownList() {} export function normalizeEncounterIndex() {} export function normalizeMonsterLevels() {} export function normalizePoiList() {}')],
+    ['https://example.test/map/js/config.js', response(200, 'export const DATA = {}; export const FLOORS = {}; export const LOCALES_IMG_PATH = ""; export const SAFE_ZONE_IMG_PATH = ""; export const WARFRONT_IMG_PATH = "";')],
+    ['https://example.test/map/js/app.js', response(200, "import { DATA } from './config.js'; import { buildSearchIndex } from './search-index.js'; import { chunkMonsterNames } from './chunk-label-state.js'; import { searchTypeForRun } from './search-focus-state.js'; import { normalizeLocaleData } from './data-normalization.js'; import { splitPortalItems } from './portal-state.js'; import { transportFocusZoom } from './transport-state.js'; import { searchLabelMarkerState } from './layer-state.js'; import { monsterFilterStatusText } from './monster-filter-state.js'; import { urlWithSearchTerm } from './url-state.js';")],
+    ['https://example.test/map/js/data-normalization.js', response(200, 'export function normalizeEncounterIndex() {} export function normalizeMonsterLevels() {} export function normalizePoiList() {} export function normalizeWarfrontData() {} export function normalizeLocaleData() {}')],
     ['https://example.test/map/js/portal-state.js', response(200, 'export function portalEndpoints() {} export function isPortalLabelItem() {} export function splitPortalItems() {}')],
     ['https://example.test/map/js/transport-state.js', response(200, 'export function caveEndpoints() {} export function transportFocusZoom() {}')],
     ['https://example.test/map/js/search-index.js', response(200, 'export function buildSearchIndex() {}')],
@@ -51,7 +57,12 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     ['https://example.test/map/js/monster-filter-state.js', response(200, 'export function monsterFilterStatusText() {} export function normalizeMonsterFilterExclusive() {} export function reconcileMonsterFilterState() {}')],
     ['https://example.test/map/js/url-state.js', response(200, 'export function searchTermFromUrlSearch() {} export function urlWithSearchTerm() {} export function coordinateTargetFromUrlSearch() {} export function normalizeCoordinateTarget() {}')],
     ['https://example.test/map/img/Map_Combined.png', response(200, '')],
-    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')]
+    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')],
+    ['https://example.test/map/img/Safe_Zones.png', response(200, '')],
+    ['https://example.test/map/img/Locales.png', response(200, '')],
+    ['https://example.test/map/data/locales.json', response(200, '{}')],
+    ['https://example.test/map/img/Warfronts.png', response(200, '')],
+    ['https://example.test/map/data/warfronts.json', response(200, '{}')]
   ]);
 
   const result = await runDeploySmoke({
@@ -75,7 +86,12 @@ test('runDeploySmoke checks index, config, app, and map image assets', async () 
     'js/monster-filter-state.js',
     'js/url-state.js',
     'map image',
-    'map preview image'
+    'map preview image',
+    'safe-zone image',
+    'locale image',
+    'locale data',
+    'warfront image',
+    'warfront data'
   ]);
 });
 
@@ -94,7 +110,12 @@ test('runDeploySmoke reports stale deployments', async () => {
     ['https://example.test/map/js/monster-filter-state.js', response(404, 'not found')],
     ['https://example.test/map/js/url-state.js', response(404, 'not found')],
     ['https://example.test/map/img/Map_Combined.png', response(200, '')],
-    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')]
+    ['https://example.test/map/img/Map_Combined-preview.webp', response(200, '')],
+    ['https://example.test/map/img/Safe_Zones.png', response(200, '')],
+    ['https://example.test/map/img/Locales.png', response(200, '')],
+    ['https://example.test/map/data/locales.json', response(200, '{}')],
+    ['https://example.test/map/img/Warfronts.png', response(200, '')],
+    ['https://example.test/map/data/warfronts.json', response(200, '{}')]
   ]);
 
   const result = await runDeploySmoke({

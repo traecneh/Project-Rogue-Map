@@ -9,12 +9,14 @@
 
   /* Map entity colors (sync with map visuals) */
   --mon-color: #e2f516;   /* Monsters (chunk labels) - gold */
-  --town-color:#4cc9f0;   /* Towns - cyan */
   --portal-color:#ff3dc9; /* Portals - magenta */
   --cave-color: #e2f516;  /* Caves - gold (dotted lines) */
   --poi-color:  #fbbf24;  /* Points of Interest - amber */
   --crim-color: #fb7185;  /* Crim spawns - rose */
   --zone-color: #f59e0b;  /* Zones - amber */
+  --locale-color: #e5e7eb; /* Locales use client colors plus code-specific patterns */
+  --safe-zone-color: #4cc9f0; /* Safe zones - cyan with a patterned map overlay */
+  --warfront-color: #a855f7; /* Warfronts use seven color-and-pattern combinations */
 }
 * { box-sizing: border-box; }
 html, body, #app, #map { height: 100%; margin: 0; }
@@ -299,15 +301,59 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   transform: translate(calc(-50% + var(--floor-shift-x)), -50%);
   display: inline-block;
 }
-/* Towns larger (2×) */
-.lbl span.n.town { font-size: 24px; }
+/* Large map labels */
 .lbl span.n.poi  { font-size: 24px; }
 
 /* Category accents */
 .n.monster { color: var(--mon-color); }
-.n.town    { color: var(--town-color); }
 .n.poi     { color: var(--poi-color); }
 .n.portal  { color: var(--portal-color); }
+.n.locale  { color: #f8fafc; }
+
+.locale-label-content {
+  --locale-color: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--locale-color) 74%, white);
+  border-radius: 4px;
+  background: rgba(12, 16, 21, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.locale-label-pattern {
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 2px;
+  background-color: var(--locale-color);
+}
+.locale-pattern-diagonal-down {
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, #fff 3px 4px);
+}
+.locale-pattern-cross-diagonal {
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 5px, #fff 5px 6px),
+    repeating-linear-gradient(135deg, transparent 0 5px, #fff 5px 6px);
+}
+.locale-pattern-grid {
+  background-image:
+    linear-gradient(#fff 1px, transparent 1px),
+    linear-gradient(90deg, #fff 1px, transparent 1px);
+  background-size: 5px 5px;
+}
+.locale-pattern-dots {
+  background-image: radial-gradient(circle, #fff 1px, transparent 1.5px);
+  background-size: 4px 4px;
+}
+.locale-pattern-horizontal {
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, #fff 3px 4px);
+}
+
+.leaflet-interactive.locale-search-highlight {
+  filter: drop-shadow(0 0 3px rgba(255, 214, 10, 0.95));
+}
 
 /* Search highlight (solid bg, preserve original text color) */
 .n.match {
@@ -383,12 +429,38 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
   box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--col) 35%, transparent 65%);
 }
 .pill-mon    { --col: var(--mon-color); }
-.pill-town   { --col: var(--town-color); }
 .pill-portal { --col: var(--portal-color); }
 .pill-cave   { --col: var(--cave-color); }
 .pill-poi    { --col: var(--poi-color); }
 .pill-crim   { --col: var(--crim-color); }
 .pill-zone   { --col: var(--zone-color); }
+.pill-locale { --col: var(--locale-color); }
+.pill-locale .dot {
+  border-radius: 2px;
+  background-color: #00be00;
+  background-image:
+    radial-gradient(circle, #fff 1px, transparent 1.5px),
+    repeating-linear-gradient(135deg, transparent 0 4px, rgba(120, 120, 120, 0.9) 4px 5px);
+  background-size: 4px 4px, 6px 6px;
+}
+.pill-safe-zone { --col: var(--safe-zone-color); }
+.pill-safe-zone .dot {
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    135deg,
+    #effaff 0 2px,
+    var(--safe-zone-color) 2px 4px
+  );
+}
+.pill-warfront { --col: var(--warfront-color); }
+.pill-warfront .dot {
+  border-radius: 2px;
+  background-color: var(--warfront-color);
+  background-image:
+    linear-gradient(45deg, transparent 42%, #fff 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, #fff 42% 58%, transparent 58%);
+  background-size: 5px 5px;
+}
 
 /* Force pixelated scaling (nearest-neighbor) on the base image */
 .leaflet-image-layer,
@@ -586,5 +658,62 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, 
 .zone-level .icon {
   font-size: 12px;
   line-height: 1;
+}
+
+.leaflet-marker-icon.warfront-label-icon {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+.warfront-label {
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--warfront-color) 72%, white);
+  border-radius: 4px;
+  background: rgba(12, 16, 21, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  color: #f4f7fb;
+  font: 750 11px/1 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+.warfront-label-pattern {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
+  background-color: var(--warfront-color);
+}
+.warfront-pattern-diagonal-down {
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, #fff 3px 4px);
+}
+.warfront-pattern-diagonal-up {
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, #fff 3px 4px);
+}
+.warfront-pattern-horizontal {
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, #fff 3px 4px);
+}
+.warfront-pattern-vertical {
+  background-image: repeating-linear-gradient(90deg, transparent 0 3px, #fff 3px 4px);
+}
+.warfront-pattern-cross-diagonal {
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 5px, #fff 5px 6px),
+    repeating-linear-gradient(135deg, transparent 0 5px, #fff 5px 6px);
+}
+.warfront-pattern-dots {
+  background-image: radial-gradient(circle, #fff 1px, transparent 1.5px);
+  background-size: 4px 4px;
+}
+.warfront-pattern-grid {
+  background-image:
+    linear-gradient(#fff 1px, transparent 1px),
+    linear-gradient(90deg, #fff 1px, transparent 1px);
+  background-size: 5px 5px;
 }
 

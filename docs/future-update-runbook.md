@@ -7,7 +7,7 @@ Use this when Project Rogue ships a client update and the map needs to be regene
 - Run commands from the repository root.
 - Local client install is `C:\Users\traec\Desktop\Project Rogue\Client`.
 - Extracted client data is in a dated `.analysis` directory, such as `.analysis\rogue_data_vpack_YYYY-MM-DD`.
-- The extracted directory contains `map.json` and `tiles.json`.
+- The extracted directory contains `map.json`, `tiles.json`, `locales.json`, `safezones.json`, and `warfronts.json`.
 - Manual overlay JSON files stay manual unless you are intentionally updating known in-game locations by hand.
 - The elite-zone overlay is not part of the current validation path.
 - The repository root `.nojekyll` file must stay present because GitHub Pages serves this as a static native-ESM site.
@@ -18,9 +18,12 @@ Use this when Project Rogue ships a client update and the map needs to be regene
 Test-Path "C:\Users\traec\Desktop\Project Rogue\Client"
 Test-Path ".analysis\rogue_data_vpack_YYYY-MM-DD\map.json"
 Test-Path ".analysis\rogue_data_vpack_YYYY-MM-DD\tiles.json"
+Test-Path ".analysis\rogue_data_vpack_YYYY-MM-DD\locales.json"
+Test-Path ".analysis\rogue_data_vpack_YYYY-MM-DD\safezones.json"
+Test-Path ".analysis\rogue_data_vpack_YYYY-MM-DD\warfronts.json"
 ```
 
-All three commands should print `True`.
+All six commands should print `True`.
 
 ## 2. Render A Candidate
 
@@ -76,6 +79,35 @@ Regenerate the lightweight image used by external map previews:
 python tools\generate_map_preview.py
 ```
 
+Regenerate the client-derived safe-zone overlay. This is not one of the hand-maintained JSON overlays:
+
+```powershell
+python tools\generate_safezone_overlay.py `
+  --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+  --output img\Safe_Zones.png `
+  --allow-live-output
+```
+
+Regenerate the client-derived locale overlay and its searchable labels. The locale names and classifications are explicit in the generator; review that table if a future client adds an unknown ID or changes a name:
+
+```powershell
+python tools\generate_locale_overlay.py `
+  --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+  --output-image img\Locales.png `
+  --output-data data\locales.json `
+  --allow-live-output
+```
+
+Regenerate the client-derived warfront overlay and its zoom-stable label metadata:
+
+```powershell
+python tools\generate_warfront_overlay.py `
+  --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+  --output-image img\Warfronts.png `
+  --output-data data\warfronts.json `
+  --allow-live-output
+```
+
 ## 5. Run Map Health Checks
 
 ```powershell
@@ -110,8 +142,9 @@ Open `http://localhost:8001/` and check:
 
 - Overworld image loads.
 - Underground image loads.
-- Towns, POIs, caves, portals, crim spawns, zones, and encounters can be toggled.
-- Searching for a monster from the dropdown does not hide already-enabled town or POI layers.
+- POIs, caves, portals, crim spawns, zones, encounters, Locales, Safe Zones, and Warfronts can be toggled.
+- Searching for a locale enables Locales, focuses the correct floor, and outlines the matching locale region.
+- Searching for a monster from the dropdown does not hide already-enabled Locale or POI layers.
 
 ## 8. Deploy And Smoke Test
 
@@ -123,4 +156,4 @@ node tools\deploy_smoke.mjs
 
 The `Live deploy smoke` GitHub Actions workflow runs the same check automatically on `main` pushes. Use the manual command above when you want immediate local confirmation or need to check a different URL.
 
-The smoke check should pass `index.html`, `module app script`, every checked `js/*.js` helper module, and `map image`.
+The smoke check should pass `index.html`, `module app script`, every checked `js/*.js` helper module, `map image`, `map preview image`, `safe-zone image`, `locale image`, `locale data`, `warfront image`, and `warfront data`.

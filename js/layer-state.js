@@ -1,5 +1,5 @@
 const SEARCH_LABEL_LAYER_KEYS = Object.freeze({
-  town: 'towns',
+  locale: 'locales',
   poi: 'pois'
 });
 

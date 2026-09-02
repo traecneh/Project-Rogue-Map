@@ -2,7 +2,7 @@
 
 Static Leaflet map for Project Rogue.
 
-The map image is generated from local Project Rogue client data. The overlay JSON files are manually maintained to line up with known in-game locations and should not be regenerated automatically.
+The map image and client-derived region layers are generated from local Project Rogue client data. The manual location and encounter JSON files are maintained by hand and should not be regenerated automatically.
 
 ## Important Paths
 
@@ -10,6 +10,11 @@ The map image is generated from local Project Rogue client data. The overlay JSO
 - Current extracted VPACK data: `.analysis\rogue_data_vpack_2026-09-02`
 - Live map image served by the app: `img\Map_Combined.png`
 - Lightweight external-preview image: `img\Map_Combined-preview.webp`
+- Client-derived locale overlay: `img\Locales.png`
+- Generated locale names, classifications, and label positions: `data\locales.json`
+- Client-derived safe-zone overlay: `img\Safe_Zones.png`
+- Client-derived warfront overlay: `img\Warfronts.png`
+- Generated warfront names and label positions: `data\warfronts.json`
 - App entry point: `index.html`
 - Main app logic: `js\app.js`
 
@@ -17,7 +22,7 @@ Frontend JavaScript uses native browser ES modules. There is no bundled build st
 
 GitHub Pages serves this as a static site. Keep the root `.nojekyll` file so Pages does not run Jekyll processing over the native ES module files.
 
-The extracted data directory must contain at least `map.json` and `tiles.json`. The renderer can also read the client atlas from `C:\Users\traec\Desktop\Project Rogue\Client\gf_json\tiles.json` when atlas-average experiments are needed, but the current live map uses the extracted tile RGB colors.
+The extracted data directory must contain at least `map.json`, `tiles.json`, `locales.json`, `safezones.json`, and `warfronts.json`. The renderer can also read the client atlas from `C:\Users\traec\Desktop\Project Rogue\Client\gf_json\tiles.json` when atlas-average experiments are needed, but the current live map uses the extracted tile RGB colors.
 
 For the exact future update sequence, use the [future update runbook](docs/future-update-runbook.md).
 
@@ -60,6 +65,8 @@ These files are hand-maintained overlays and should remain manual:
 - `data\portals.json`
 - `data\crim_spawns.json`
 
+`data\towns.json` is retained as historical/manual reference data but is no longer loaded as a website layer. The generated Locales layer supplies current town regions and names.
+
 The elite-zone overlay is not part of the current validation path.
 
 ## Future Client Update Workflow
@@ -99,13 +106,42 @@ The elite-zone overlay is not part of the current validation path.
    python tools\generate_map_preview.py
    ```
 
-7. Run the full post-update health check:
+7. Regenerate the client-derived safe-zone overlay:
+
+   ```powershell
+   python tools\generate_safezone_overlay.py `
+     --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+     --output img\Safe_Zones.png `
+     --allow-live-output
+   ```
+
+8. Regenerate the client-derived locale overlay and searchable label metadata:
+
+   ```powershell
+   python tools\generate_locale_overlay.py `
+     --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+     --output-image img\Locales.png `
+     --output-data data\locales.json `
+     --allow-live-output
+   ```
+
+9. Regenerate the client-derived warfront overlay and label metadata:
+
+   ```powershell
+   python tools\generate_warfront_overlay.py `
+     --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD `
+     --output-image img\Warfronts.png `
+     --output-data data\warfronts.json `
+     --allow-live-output
+   ```
+
+10. Run the full post-update health check:
 
    ```powershell
    python tools\run_map_update_checks.py --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD
    ```
 
-8. Start a local server and spot-check both floors:
+11. Start a local server and spot-check both floors:
 
    ```powershell
    python -m http.server 8001
@@ -113,7 +149,7 @@ The elite-zone overlay is not part of the current validation path.
 
    Open `http://localhost:8001/`, switch between Overworld and Underground, and confirm the image and overlay layers load.
 
-9. Commit and push the regenerated map plus any intentional manual overlay updates.
+12. Commit and push the regenerated map, generated client overlays, plus any intentional manual overlay updates.
 
 ## Verification
 
@@ -158,6 +194,9 @@ node tools\deploy_smoke.mjs https://example.com/Project-Rogue-Map/
 - all Python map tools compile;
 - a fresh render matches `img\Map_Combined.png`;
 - `img\Map_Combined-preview.webp` matches the current live map;
+- `img\Safe_Zones.png` exactly matches the extracted `safezones.json` grid;
+- `img\Locales.png` and `data\locales.json` exactly match the extracted `locales.json` grid and explicit locale classification table;
+- `img\Warfronts.png` and `data\warfronts.json` exactly match the extracted `warfronts.json` grid;
 - the lineage guard still sees the Underground as source-order `q(1,0)` with `identity` orientation;
 - live map colors are still from the extracted tile palette;
 - manual overlay coordinates are in bounds;

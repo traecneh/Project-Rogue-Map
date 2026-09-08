@@ -1,5 +1,12 @@
 # Smart Measure search investigation — 2026-09-08
 
+Terrain correction after this investigation: gray mountain ID `277`, confirmed at
+Overworld `(1355, 3539)`, is now blocked alongside `0`, `1`, `53`, and `60`.
+All 12 reference distances were rechecked with full-grid breadth-first search.
+`sample-5` now has a shortest distance of 989 steps and `sample-6` has 587; the
+other references are unchanged. Historical measurements below use the earlier
+four-ID terrain rule. The checked-in route fixtures use the corrected terrain.
+
 ## Implemented follow-up
 
 The recommended hybrid strategy is now implemented. The original investigation

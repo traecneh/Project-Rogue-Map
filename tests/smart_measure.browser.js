@@ -38,7 +38,7 @@ async (page) => {
   check(requests.length === 0 && (await state()).smart, 'Smart Measure defaults on without downloading navigation data');
   await newRoute();
   check(requests.length === 0, 'Navigation loading remains lazy until the first point');
-  for (const point of [{ x: 2041, y: 638 }, { x: 1545, y: 783 }, { x: 1928, y: 618 }]) {
+  for (const point of [{ x: 2041, y: 638 }, { x: 1545, y: 783 }, { x: 1928, y: 618 }, { x: 1355, y: 3539 }]) {
     await fire(point); await settled();
     const current = await state();
     check(current.points === 0 && current.hint === 'Choose a walkable tile.', 'Confirmed blocked tile must be rejected');

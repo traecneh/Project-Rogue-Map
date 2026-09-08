@@ -17,7 +17,7 @@ The map image and client-derived region layers are generated from local Project 
 - Generated warfront names and label positions: `data\warfronts.json`
 - App entry point: `index.html`
 - Main app logic: `js\app.js`
-- Smart Measure walking grids: `data\navigation\` (tile IDs `0`, `1`, `53`, `60` are blocked)
+- Smart Measure walking grids: `data\navigation\` (tile IDs `0`, `1`, `53`, `60`, `277` are blocked)
 
 Smart Measure is enabled by default, can be unchecked for straight-line measuring,
 and runs in a Web Worker without diagonal corner

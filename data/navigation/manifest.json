@@ -4,7 +4,8 @@
     0,
     1,
     53,
-    60
+    60,
+    277
   ],
   "sourceMapSha256": "3bf5f78b9bb3d25f5378d5574a6f83848244d9bf172aa3534b05c3412f7d8d04",
   "floors": {
@@ -13,15 +14,15 @@
       "offsetX": 0,
       "width": 4096,
       "height": 4096,
-      "sha256": "18183efcce9bad0479b17dc5ad010f38cf626e70901fdf4df5bde145fc9baac9",
-      "regions": 4706,
-      "walkableTiles": 6566866,
+      "sha256": "b4c06fe550c8c26be462bc710eec4fb9b5595859b86467b9f90fe56d404b7647",
+      "regions": 4797,
+      "walkableTiles": 6473237,
       "hierarchy": {
         "file": "overworld-hierarchy.bin",
         "encoding": "gzip",
-        "decodedBytes": 9622584,
-        "sha256": "c40146c0a5a28513d15d400d6b1817813521d06245e3a6770777bf81dbae028e",
-        "gridSha256": "18183efcce9bad0479b17dc5ad010f38cf626e70901fdf4df5bde145fc9baac9"
+        "decodedBytes": 9451192,
+        "sha256": "a0f19796598b904785f573245f5a0ceef310b1eec70186ac57ca62e48fc1e591",
+        "gridSha256": "b4c06fe550c8c26be462bc710eec4fb9b5595859b86467b9f90fe56d404b7647"
       }
     },
     "underground": {

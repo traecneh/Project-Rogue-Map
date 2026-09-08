@@ -13,7 +13,7 @@ import numpy as np
 
 from render_map_candidate import DEFAULT_EXTRACTED_DIR, load_map_arrays, render_page
 
-BLOCKED_IDS = (0, 1, 53, 60)
+BLOCKED_IDS = (0, 1, 53, 60, 277)
 
 
 def encode_grid(walkable: np.ndarray) -> tuple[bytes, int]:

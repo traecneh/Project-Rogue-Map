@@ -75,7 +75,8 @@ python tools\render_map_candidate.py `
 
 Regenerate Smart Measure's walking grids and cluster routing hierarchies from the
 same extracted map (requires Node.js and the existing Python dependencies). These
-block tile IDs `0`, `1`, `53`, and `60`, using the map's client-blueprint layer rule:
+block tile IDs `0`, `1`, `53`, `60`, and `277`, using the map's client-blueprint layer rule.
+ID `277` is a second gray mountain variant, confirmed at Overworld `(1355, 3539)`:
 
 ```powershell
 python tools\generate_navigation.py --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD

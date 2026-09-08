@@ -84,15 +84,15 @@ test('blocked points, diagonal squeezing, cancellation and search limits have di
   assert.equal((await findWalkingPath(detour, { x: 0, y: 0 }, { x: 4, y: 0 }, { cancelled: () => true })).status, 'cancelled');
 });
 
-test('shipped navigation grids match their checksums and the four confirmed samples', () => {
+test('shipped navigation grids match their checksums and the confirmed blocked samples', () => {
   const manifest = JSON.parse(readFileSync('data/navigation/manifest.json', 'utf8'));
-  assert.deepEqual(manifest.blockedTileIds, [0, 1, 53, 60]);
+  assert.deepEqual(manifest.blockedTileIds, [0, 1, 53, 60, 277]);
   for (const [floor, info] of Object.entries(manifest.floors)) {
     const bytes = readFileSync(`data/navigation/${info.file}`);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), info.sha256);
     const grid = decodeNavigationGrid(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
     assert.equal(grid.width, 4096); assert.equal(grid.height, 4096);
-    const samples = floor === 'overworld' ? [[2041, 638], [1545, 783], [1928, 618]] : [[6099 - 4096, 1762]];
+    const samples = floor === 'overworld' ? [[2041, 638], [1545, 783], [1928, 618], [1355, 3539]] : [[6099 - 4096, 1762]];
     for (const [x, y] of samples) { assert.equal(grid.walkable(x, y), false); assert.equal(grid.component(x, y), 0); }
     assert.equal(grid.component(-1, 0), 0); assert.equal(grid.component(4096, 0), 0);
   }

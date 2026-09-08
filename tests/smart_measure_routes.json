@@ -127,7 +127,7 @@
       "x": 1869,
       "y": 3193
     },
-    "optimalSteps": 965
+    "optimalSteps": 989
   },
   {
     "name": "sample-6",
@@ -140,7 +140,7 @@
       "x": 1124,
       "y": 3324
     },
-    "optimalSteps": 458
+    "optimalSteps": 587
   },
   {
     "name": "sample-7",

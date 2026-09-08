@@ -28,16 +28,17 @@ import {
   ZOOM_OUT_EXTRA
 } from './config.js';
 import { clamp, debounce, escHtml, readCssVar } from './dom-utils.js';
+import { createMapTools } from './map-tools.js';
+import { createChunkLabelLayoutCache } from './chunk-label-layout-cache.js';
+import { monsterViewportBuffer, monsterViewportNeedsRefresh } from './monster-viewport-state.js';
 import {
   clampFloorX as clampFloorXValue,
   floorBounds as floorBoundsForConfig,
   floorConfig as floorConfigForConfig,
   floorForX as floorForXValue,
   floorLabelForX as floorLabelForXValue,
-  floorLocalX as floorLocalXValue,
   floorViewportBounds as floorViewportBoundsForConfig,
   gameXYFromLatLng,
-  globalFloorX as globalFloorXValue,
   mapLat as mapLatValue
 } from './coordinates.js';
 import {
@@ -212,9 +213,6 @@ import {
   const monsterLevelMaxSelect = $('#monsterLevelMax');
   const monsterLevelExclusiveBtn = $('#monsterLevelExclusive');
   const monsterLevelFilterStatus = $('#monsterLevelFilterStatus');
-  const btnVibeOut   = $('#btnVibeOut');
-  const btnCrimRespawn = $('#btnCrimRespawn');
-  const btnCrimRespawnClear = $('#btnCrimRespawnClear');
   const panel        = $('#panel');
   const btnCollapse  = $('#btnCollapse');
   const codexLogoImg = $('#codexLogo');
@@ -317,11 +315,8 @@ import {
   let IMG_W = 0, IMG_H = 0;
   let floorMinZoom = null;
   let currentFloor = 'overworld';
-  const visitedFloors = new Set(['overworld']);
-  let pendingDragRefresh = false;
-  let isDraggingMap = false;
-  let floorRefreshToken = 0;
-  let floorRefreshTimer = null;
+  const floorViews = new Map();
+  let mapTools = null;
   // lat = y, lng = x for CRS.Simple; we’ll set the final mapping after image load (needs IMG_H for Y flip)
   let toLL = (x, y) => L.latLng(y, x);
 
@@ -352,14 +347,6 @@ import {
 
   function floorLabelForX(x) {
     return floorLabelForXValue(x, FLOOR_WIDTH);
-  }
-
-  function floorLocalX(x, floor = floorForX(x)) {
-    return floorLocalXValue(x, floor, FLOORS);
-  }
-
-  function globalFloorX(localX, floor) {
-    return globalFloorXValue(localX, floor, FLOORS);
   }
 
   function clampFloorX(x, floor) {
@@ -424,121 +411,52 @@ import {
     renderFloorMask();
   }
 
-  function forceFloorRefresh() {
-    const token = ++floorRefreshToken;
-    if (floorRefreshTimer) {
-      clearTimeout(floorRefreshTimer);
-      floorRefreshTimer = null;
-    }
-    const run = () => {
-      if (token !== floorRefreshToken || isDraggingMap) return;
-      refreshChunkLayer();
-      rerunCollision();
-    };
-    if (isDraggingMap) return;
-    floorRefreshTimer = setTimeout(() => {
-      floorRefreshTimer = null;
-      if (token !== floorRefreshToken || isDraggingMap) return;
-      const currentZoom = map.getZoom();
-      const maxZoom = map.getMaxZoom();
-      const minZoom = map.getMinZoom();
-      const bounceZoom = currentZoom < maxZoom ? currentZoom + 1
-        : (currentZoom > minZoom ? currentZoom - 1 : currentZoom);
-
-      if (bounceZoom === currentZoom) {
-        requestAnimationFrame(() => {
-          if (token !== floorRefreshToken || isDraggingMap) return;
-          run();
-          requestAnimationFrame(() => {
-            if (token !== floorRefreshToken || isDraggingMap) return;
-            run();
-          });
-        });
-        return;
-      }
-
-      map.setZoom(bounceZoom, { animate: false });
-      requestAnimationFrame(() => {
-        map.setZoom(currentZoom, { animate: false });
-        requestAnimationFrame(() => {
-          if (token !== floorRefreshToken || isDraggingMap) return;
-          run();
-        });
-      });
-    }, 90);
-  }
-
-  function switchFloor(nextFloor, opts = {}) {
+  function switchFloor(nextFloor, { x = null, y = null, zoom = null } = {}) {
     const targetFloor = floorConfig(nextFloor).key;
-    const {
-      animate = true,
-      duration = 0.6,
-      preserveLocalPosition = true,
-      x = null,
-      y = null,
-      zoom = null
-    } = opts;
-
-    if (targetFloor === currentFloor && !Number.isFinite(x) && !Number.isFinite(y) && !Number.isFinite(zoom)) {
+    const hasDestination = Number.isFinite(x) || Number.isFinite(y) || Number.isFinite(zoom);
+    if (targetFloor === currentFloor && !hasDestination) {
       syncFloorButtons();
       return;
     }
 
+    if (!IMG_W || !IMG_H) {
+      currentFloor = targetFloor;
+      syncFloorButtons();
+      return;
+    }
+
+    // Stop the outgoing camera before saving it; keep fractional coordinates
+    // and the padded edge position intact when returning to this floor.
+    map.stop();
+    monsterZooming = false;
+    const center = map.getCenter();
+    floorViews.set(currentFloor, { center: L.latLng(center.lat, center.lng), zoom: map.getZoom() });
+    const savedView = floorViews.get(targetFloor);
     currentFloor = targetFloor;
     syncFloorButtons();
-
-    if (!IMG_W || !IMG_H) return;
-
-    const prevCenter = toGameXY(map.getCenter());
-    map.stop();
-
-    const localX = preserveLocalPosition
-      ? floorLocalX(prevCenter[0], floorForX(prevCenter[0]))
-      : FLOOR_WIDTH / 2;
-    const targetX = Number.isFinite(x)
-      ? clampFloorX(x, targetFloor)
-      : clampFloorX(globalFloorX(clamp(localX, 0, FLOOR_WIDTH - 1), targetFloor), targetFloor);
-    const targetY = clamp(Number.isFinite(y) ? y : prevCenter[1], 0, IMG_H);
-    const desiredZoom = Number.isFinite(zoom) ? zoom : map.getZoom();
-    const boundedZoom = clamp(desiredZoom, map.getMinZoom(), map.getMaxZoom());
-    const targetZoom = Number.isFinite(floorMinZoom) ? Math.max(boundedZoom, floorMinZoom) : boundedZoom;
-    const nextViewportBounds = floorViewportBounds(currentFloor);
-    const firstVisit = !visitedFloors.has(targetFloor);
-    if (Number.isFinite(floorMinZoom)) {
-      map.setMinZoom(floorMinZoom);
-    }
     map.setMaxBounds(null);
 
-    const latlng = toLL(targetX, targetY);
-    if (firstVisit) {
-      const initBounds = floorBounds(targetFloor);
-      map.fitBounds(initBounds, { animate: false });
-      map.setMaxBounds(nextViewportBounds);
-      renderFloorMask();
-      visitedFloors.add(targetFloor);
-      forceFloorRefresh();
-    } else if (animate) {
-      map.once('moveend', () => {
-        map.setMaxBounds(nextViewportBounds);
-        renderFloorMask();
-        forceFloorRefresh();
-      });
-      map.flyTo(latlng, targetZoom, { animate: true, duration });
+    // Explicit links, searches, and transport destinations always take priority,
+    // including the first visit. Floor buttons restore a view or show an overview.
+    if (hasDestination) {
+      const fallbackCenter = savedView?.center || floorBounds(targetFloor).getCenter();
+      const targetCenter = L.latLng(
+        Number.isFinite(y) ? mapLat(clamp(y, 0, IMG_H)) : fallbackCenter.lat,
+        Number.isFinite(x) ? clampFloorX(x, targetFloor) : fallbackCenter.lng
+      );
+      const targetZoom = clamp(Number.isFinite(zoom) ? zoom : map.getZoom(), map.getMinZoom(), map.getMaxZoom());
+      map.setView(targetCenter, targetZoom, { animate: false });
+    } else if (savedView) {
+      map.setView(savedView.center, clamp(savedView.zoom, map.getMinZoom(), map.getMaxZoom()), { animate: false });
     } else {
-      map.setView(latlng, targetZoom, { animate: false });
-      map.setMaxBounds(nextViewportBounds);
-      renderFloorMask();
-      forceFloorRefresh();
+      map.fitBounds(floorBounds(targetFloor), { animate: false });
     }
 
-    if (!firstVisit) {
-      visitedFloors.add(targetFloor);
-    }
+    // Change floors atomically: no cross-map flight or delayed zoom bounce that
+    // could overwrite a newer user action. Refresh labels even at the same zoom.
+    refreshFloorViewport();
+    mapTools?.onFloorChange();
 
-    if (btnVibeOut?.classList.contains('active')) {
-      const restarted = startVibeLoop();
-      if (!restarted) btnVibeOut.classList.remove('active');
-    }
     refreshChunkLayer();
     rerunCollision();
   }
@@ -559,7 +477,7 @@ import {
     const targetZoom = Number.isFinite(maxZoom) ? Math.min(desiredZoom, maxZoom) : desiredZoom;
 
     if (currentFloor !== targetFloor) {
-      switchFloor(targetFloor, { x, y, zoom: targetZoom, animate, duration, preserveLocalPosition: false });
+      switchFloor(targetFloor, { x, y, zoom: targetZoom });
       return true;
     }
 
@@ -572,8 +490,8 @@ import {
     return true;
   }
 
-  btnFloorOverworld?.addEventListener('click', () => switchFloor('overworld', { animate: false }));
-  btnFloorUnderground?.addEventListener('click', () => switchFloor('underground', { animate: false }));
+  btnFloorOverworld?.addEventListener('click', () => switchFloor('overworld'));
+  btnFloorUnderground?.addEventListener('click', () => switchFloor('underground'));
   syncFloorButtons();
 
   const paneByKind = {
@@ -594,7 +512,6 @@ import {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  const randomInRange = (min, max) => Math.random() * (max - min) + min;
   const CODEX_LOGOS = ['./img/codex-logo-1.png', './img/codex-logo-2.png'];
 
   if (codexLogoImg) {
@@ -602,7 +519,7 @@ import {
     codexLogoImg.src = pick;
   }
 
-  function vibeTargets() {
+  function initialViewTargets() {
     const combined = [
       ...(Array.isArray(window.__localeSearchCache) ? window.__localeSearchCache : []),
       ...(Array.isArray(window.__poiDataCache) ? window.__poiDataCache : [])
@@ -610,126 +527,13 @@ import {
     return combined;
   }
 
-  const VIBE_NEAR_RADIUS = 1600;
-  const VIBE_NEIGHBOR_LIMIT = 6;
-  const VIBE_MIN_DURATION = 14;
-  const VIBE_MAX_DURATION = 22;
-  const VIBE_SETTLE_MS = 3500;
-  const VIBE_ZOOM_DELTAS = [0, 0, 0, 1, -1];
-
-  let vibeTimer = null;
-  let vibeGraph = null;
-  let vibeCurrentIdx = null;
-  let vibePrevIdx = null;
-
-  const vibeDistSq = (a, b) => {
-    const dx = a.x - b.x;
-    const dy = a.y - b.y;
-    return dx * dx + dy * dy;
-  };
-
-  function buildVibeGraph() {
-    const targets = vibeTargets();
-    if (!targets.length) return null;
-    const nodes = targets.map((t, idx) => ({ ...t, _id: idx }));
-    const radiusSq = VIBE_NEAR_RADIUS * VIBE_NEAR_RADIUS;
-    const neighbors = nodes.map((node, idx) => {
-      const sorted = nodes
-        .map((other, j) => {
-          if (j === idx) return null;
-          return { idx: j, distSq: vibeDistSq(node, other) };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.distSq - b.distSq);
-      const close = sorted.filter(n => n.distSq <= radiusSq);
-      const shortlist = (close.length ? close : sorted).slice(0, VIBE_NEIGHBOR_LIMIT);
-      return shortlist.map(n => n.idx);
-    });
-    return { nodes, neighbors };
-  }
-
-  function nearestVibeIndex(graph, latlng) {
-    if (!graph?.nodes?.length) return null;
-    const [gx, gy] = toGameXY(latlng);
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    graph.nodes.forEach((node, idx) => {
-      const dx = gx - node.x;
-      const dy = gy - node.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestDist) {
-        bestDist = d2;
-        bestIdx = idx;
-      }
-    });
-    return bestIdx;
-  }
-
-  function nextVibeIndex(graph, currentIdx, prevIdx) {
-    if (!graph?.nodes?.length) return null;
-    const neighbors = graph.neighbors[currentIdx] || [];
-    if (!neighbors.length) return currentIdx;
-    const pool = neighbors.filter(idx => idx !== prevIdx);
-    const options = pool.length ? pool : neighbors;
-    return randomArrayItem(options);
-  }
-
-  function startVibeLoop() {
-    stopVibeLoop();
-    if (!IMG_W || !IMG_H) return false;
-    vibeGraph = buildVibeGraph();
-    if (!vibeGraph || !vibeGraph.nodes.length) return false;
-
-    const startIdx = nearestVibeIndex(vibeGraph, map.getCenter());
-    vibeCurrentIdx = Number.isFinite(startIdx) ? startIdx : 0;
-    vibePrevIdx = null;
-
-    const hop = () => {
-      if (!vibeGraph || !vibeGraph.nodes.length) return;
-      const nextIdx = nextVibeIndex(vibeGraph, vibeCurrentIdx, vibePrevIdx);
-      if (!Number.isFinite(nextIdx)) return;
-
-      const target = vibeGraph.nodes[nextIdx];
-      const latlng = toLL(target.x, target.y);
-      const zoomDelta = randomArrayItem(VIBE_ZOOM_DELTAS) || 0;
-      const currentZoom = map.getZoom();
-      const targetZoom = clamp(currentZoom + zoomDelta, map.getMinZoom(), map.getMaxZoom());
-      const duration = randomInRange(VIBE_MIN_DURATION, VIBE_MAX_DURATION);
-
-      map.flyTo(latlng, targetZoom, { duration, easeLinearity: 0.12 });
-
-      vibePrevIdx = vibeCurrentIdx;
-      vibeCurrentIdx = nextIdx;
-
-      let synced = false;
-      const sync = () => {
-        if (synced) return;
-        synced = true;
-        refreshChunkLayer();
-        rerunCollision();
-      };
-      map.once('moveend', sync);
-      map.once('zoomend', sync);
-      vibeTimer = setTimeout(hop, duration * 1000 + VIBE_SETTLE_MS);
-    };
-
-    hop();
-    return true;
-  }
-
-  function stopVibeLoop() {
-    if (vibeTimer) {
-      clearTimeout(vibeTimer);
-      vibeTimer = null;
-    }
-    vibeGraph = null;
-    vibeCurrentIdx = null;
-    vibePrevIdx = null;
-  }
-
   // -------- Monsters (chunk labels) via encounters.json only --------
   const chunkTiles = new Map();   // key "cx,cy" -> L.Marker
   const overviewTiles = new Map(); // key "span:cx,cy" -> L.Marker
+  let monsterRenderedView = null;
+  let lastMonsterPanRefresh = -Infinity;
+  let monsterPanTimer = null;
+  let monsterZooming = false;
   let encountersIndex = null;     // Map<"cx,cy", string[]>
   let monsterLevels = null;       // Map<monster name, level>
   let monsterLevelValues = [];    // Unique sorted level list for filter UI
@@ -877,12 +681,36 @@ import {
   }
 
   function clearMonsterMarkers() {
+    monsterRenderedView = null;
+    clearTimeout(monsterPanTimer);
+    monsterPanTimer = null;
     clearMarkerMap(chunkTiles);
     clearMarkerMap(overviewTiles);
   }
 
+  const chunkLabelLayouts = createChunkLabelLayoutCache();
+
+  function invalidateChunkLabelLayouts() {
+    chunkLabelLayouts.clear();
+    refreshChunkLayer();
+  }
+
+  // A font swap can change the fit even if the names and cell size are unchanged.
+  document.fonts?.addEventListener('loadingdone', invalidateChunkLabelLayouts);
+  document.fonts?.addEventListener('loadingerror', invalidateChunkLabelLayouts);
+
   function applyInner(el, w, h, names) {
     const inner = el.querySelector('.chunk-label-inner'); if (!inner) return;
+    // Measurements made with a temporary fallback font must not enter the cache.
+    const canCache = document.fonts?.status !== 'loading';
+    const cached = canCache && chunkLabelLayouts.get(w, h, names);
+    if (cached) {
+      inner.classList.toggle('compact', cached.compact);
+      inner.innerHTML = cached.html;
+      inner.style.fontSize = cached.fontSize;
+      inner.style.lineHeight = '1.05';
+      return;
+    }
     inner.classList.remove('compact');
     inner.innerHTML = names.map(n => {
       const boss = isBossMonsterName(n, monsterLevel);
@@ -916,6 +744,13 @@ import {
         inner.innerHTML = `<span class="chunk-count">${names.length}</span>`;
       }
     }
+    if (canCache) {
+      chunkLabelLayouts.set(w, h, names, {
+        html: inner.innerHTML,
+        fontSize: inner.style.fontSize,
+        compact: inner.classList.contains('compact')
+      });
+    }
   }
 
   function fitChunkLabel(bounds, names, marker) {
@@ -925,8 +760,10 @@ import {
     const h = Math.max(8, Math.round(br.y - tl.y));
 
     const key = names.join('|');
-    if (marker._lastW === w && marker._lastH === h && marker._lastHash === key) return;
+    if (marker._lastW === w && marker._lastH === h && marker._lastHash === key
+      && marker._layoutRevision === chunkLabelLayouts.revision) return;
     marker._lastW = w; marker._lastH = h; marker._lastHash = key;
+    marker._layoutRevision = chunkLabelLayouts.revision;
 
     const html = `<div class="chunk-label"><div class="chunk-label-inner"></div></div>`;
     const icon = L.divIcon({ className: 'chunk-icon', html, iconSize: [w, h], iconAnchor: [w / 2, h / 2] });
@@ -1055,8 +892,6 @@ import {
         }).addTo(chunkFG);
         marker.on('click', () => zoomIntoMonsterOverview(marker));
         overviewTiles.set(group.key, marker);
-      } else {
-        marker.setLatLng(bounds.getCenter());
       }
       marker._overviewGroup = group;
       fitOverviewLabel(bounds, group, marker);
@@ -1108,7 +943,11 @@ import {
     return true;
   }
 
-  function refreshChunkLayer() {
+  function refreshChunkLayer({ viewportOnly = false, duringMove = false } = {}) {
+    if (!duringMove) {
+      clearTimeout(monsterPanTimer);
+      monsterPanTimer = null;
+    }
     if (!IMG_W || !IMG_H) return;
 
     if (!isOn(pillMonsters)) {
@@ -1117,8 +956,27 @@ import {
       return;
     }
 
+    if (duringMove && monsterZooming) return;
+    const zoom = map.getZoom();
+    const center = map.project(map.getCenter(), zoom);
+    const size = map.getSize();
+    const view = { x: center.x, y: center.y, zoom, floor: currentFloor, width: size.x, height: size.y };
+    if ((viewportOnly || duringMove) && !monsterViewportNeedsRefresh(monsterRenderedView, view)) return;
+    const now = performance.now();
+    if (duringMove && now - lastMonsterPanRefresh < 80) {
+      // Finish a throttled update even if the user pauses with the mouse held.
+      if (monsterPanTimer === null) {
+        monsterPanTimer = setTimeout(() => {
+          monsterPanTimer = null;
+          refreshChunkLayer({ duringMove: true });
+        }, 80 - (now - lastMonsterPanRefresh));
+      }
+      return;
+    }
+
     const [cw, ch] = chunkScreenSize();
     const chunkPx = Math.min(cw, ch);
+    const bufferPx = monsterViewportBuffer(view);
     const b = map.getBounds();
     const [minX, minY] = toGameXY(b.getNorthWest());
     const [maxX, maxY] = toGameXY(b.getSouthEast());
@@ -1144,20 +1002,25 @@ import {
       const lastGroupCx = Math.floor(rawCx1 / span) * span;
       const firstGroupCy = Math.floor(rawCy0 / span) * span;
       const lastGroupCy = Math.floor(rawCy1 / span) * span;
+      // Include complete groups so summaries do not change as their cells
+      // cross the viewport edge.
+      const padding = Math.max(1, Math.ceil(bufferPx / (span * chunkPx))) * span;
       renderMonsterOverview({
-        cx0: clamp(firstGroupCx - span, floorMinCx, floorMaxCx),
-        cx1: clamp(lastGroupCx + (span * 2) - 1, floorMinCx, floorMaxCx),
-        cy0: clamp(firstGroupCy - span, 0, maxCy),
-        cy1: clamp(lastGroupCy + (span * 2) - 1, 0, maxCy),
+        cx0: clamp(firstGroupCx - padding, floorMinCx, floorMaxCx),
+        cx1: clamp(lastGroupCx + span + padding - 1, floorMinCx, floorMaxCx),
+        cy0: clamp(firstGroupCy - padding, 0, maxCy),
+        cy1: clamp(lastGroupCy + span + padding - 1, 0, maxCy),
         span
       });
+      monsterRenderedView = view;
+      lastMonsterPanRefresh = performance.now();
       return;
     }
 
     clearMarkerMap(overviewTiles);
 
-    // Visible chunk range with one tile of padding to avoid edge pop-in.
-    const PAD = 1;
+    // Prepare labels before they enter the screen while panning.
+    const PAD = Math.max(1, Math.ceil(bufferPx / chunkPx));
 
     const cx0 = clamp(rawCx0 - PAD, floorMinCx, floorMaxCx), cx1 = clamp(rawCx1 + PAD, floorMinCx, floorMaxCx);
     const cy0 = clamp(rawCy0 - PAD, 0, maxCy), cy1 = clamp(rawCy1 + PAD, 0, maxCy);
@@ -1179,19 +1042,18 @@ import {
         if (!m) {
           m = L.marker(center, { pane: 'chunk', interactive: false, keyboard: false }).addTo(chunkFG);
           chunkTiles.set(key, m);
-        } else {
-          m.setLatLng(center);
         }
         fitChunkLabel(bounds, names, m);
       }
     }
 
-    // Prune off-screen markers
+    // Prune beyond the buffer to keep the number of markers bounded.
     for (const [k, m] of chunkTiles) {
       if (!keep.has(k)) { chunkFG.removeLayer(m); chunkTiles.delete(k); }
     }
+    monsterRenderedView = view;
+    lastMonsterPanRefresh = performance.now();
   }
-  const refreshChunkLayerDebounced = debounce(refreshChunkLayer, 120);
 
   function focusTransportPartner(partnerPoint, extraZoom = 0) {
     if (!partnerPoint) return;
@@ -1923,6 +1785,7 @@ import {
 
       // Monster levels lookup
       monsterLevels = normalizeMonsterLevels(monsterLvlJson);
+      chunkLabelLayouts.clear();
       updateMonsterLevelSelectOptions();
       buildSearchIndex();
       if (searchInput && searchInput.value.trim() && document.activeElement === searchInput) {
@@ -1971,12 +1834,12 @@ import {
         const entry = findSearchEntryByName(searchInput.value);
         const focused = entry ? focusOnEntry(entry) : focusOnSearchMatches();
         if (!focused) {
-          const candidates = vibeTargets();
+          const candidates = initialViewTargets();
           const randomSpot = randomArrayItem(candidates);
           if (randomSpot) map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
         }
       } else {
-        const candidates = vibeTargets();
+        const candidates = initialViewTargets();
         const randomSpot = randomArrayItem(candidates);
         if (randomSpot) {
           map.setView(toLL(randomSpot.x, randomSpot.y), map.getZoom(), { animate: false });
@@ -1997,165 +1860,19 @@ import {
     map.on('mousemove', e => { const [x, y] = toGameXY(e.latlng); setCoordDisplay(x, y); });
   };
 
-  // -------- Measure (unchanged) --------
-  let measuring = false;
-  let poly = null,  verts = [], dotMarkers = [];
-  const btnMeasure = $('#btnMeasure');
-  const btnClear   = $('#btnClear');
-  const stats      = $('#measureStats');
-  const tilesPerSecond = 5;
-
-  function snapLL(ll) { return L.latLng(Math.round(ll.lat), Math.round(ll.lng)); }
-  function cheb(a, b){ return Math.max(Math.abs(a.lat - b.lat), Math.abs(a.lng - b.lng)); }
-  function tilesLen(a){ let n=0; for (let i=1; i<a.length; i++) n += cheb(a[i-1], a[i]); return n; }
-  function fmtTime(sec){ if (sec<60) return `${sec.toFixed(1)}s`; let s=Math.round(sec), h=Math.floor(s/3600); s%=3600; let m=Math.floor(s/60), r=s%60; const out=[]; if(h) out.push(`${h}h`); if(m) out.push(`${m}m`); if(r||(!h&&!m)) out.push(`${r}s`); return out.join(' '); }
-  function updateStats(){ const t = tilesLen(verts), secs = t / tilesPerSecond; if (stats) stats.textContent = `Time: ${fmtTime(secs)} (${t} tiles)`; }
-  function startMeasure(){ measuring=true; btnMeasure?.classList.add('active'); map.doubleClickZoom.disable(); verts=[]; if (poly){ routes.removeLayer(poly); poly=null; } for (const d of dotMarkers){ routes.removeLayer(d); } dotMarkers=[]; updateStats(); }
-  function finishMeasure(){ measuring=false; btnMeasure?.classList.remove('active'); map.doubleClickZoom.enable(); }
-  function toggleMeasure(){ measuring ? finishMeasure() : startMeasure(); }
-  btnMeasure?.addEventListener('click', toggleMeasure);
-  btnClear  ?.addEventListener('click', () => { verts=[]; if (poly){ routes.removeLayer(poly); poly=null; } for (const d of dotMarkers){ routes.removeLayer(d); } dotMarkers=[]; updateStats(); });
-  map.on('click', e => {
-    if (!measuring) return;
-    const ll = snapLL(e.latlng); verts.push(ll);
-    const dot = L.marker(ll, { pane:'routes', interactive:false, keyboard:false, icon: L.divIcon({ className: 'vertex' }) });
-    dot.addTo(routes);
-    dotMarkers.push(dot);
-    if (!poly) { poly = L.polyline(verts, { color:'#4cc9f0', weight:2, opacity:0.9, pane:'routes' }).addTo(routes); }
-    else       { poly.setLatLngs(verts); }
-    updateStats();
+  // -------- Map tools --------
+  mapTools = createMapTools({
+    L, map, routes, eliteFG, respawnFG, floors: FLOORS, chunkSize: CHUNK_SIZE,
+    getFloor: () => currentFloor, getImageHeight: () => IMG_H,
+    toGameXY, toLL: (x, y) => toLL(x, y),
+    getCrimSpawns: () => crimSpawnPoints, getCrimColor, switchFloor, panel,
+    collapsePanel: () => setPanelCollapsed(true)
   });
-  map.on('dblclick', () => { if (measuring) finishMeasure(); });
   window.addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== searchInput){ e.preventDefault(); searchInput.focus(); searchInput.select(); }
-    else if (e.key === 'Escape' && measuring){ finishMeasure(); }
-  });
-  btnVibeOut?.addEventListener('click', () => {
-    if (btnVibeOut.classList.contains('active')) {
-      btnVibeOut.classList.remove('active');
-      stopVibeLoop();
-    } else {
-      btnVibeOut.classList.add('active');
-      const started = startVibeLoop();
-      if (!started) btnVibeOut.classList.remove('active');
+    if (e.key === '/' && document.activeElement !== searchInput) {
+      e.preventDefault(); searchInput.focus(); searchInput.select();
     }
   });
-
-  // -------- Elite (simple rectangle outline) --------
-  const btnEliteShow  = $('#btnEliteShow');
-  const btnEliteClear = $('#btnEliteClear');
-  let   eliteRing = null;
-
-  function drawEliteAt(x, y) {
-    const [gx, gy] = toGameXY(L.latLng(y, x));
-    const cx = Math.floor(gx / CHUNK_SIZE), cy = Math.floor(gy / CHUNK_SIZE);
-    const R  = 10; // 21×21
-    const left   = (cx - R) * CHUNK_SIZE, top    = (cy - R) * CHUNK_SIZE;
-    const right  = (cx + R + 1) * CHUNK_SIZE - 1;
-    const bottom = (cy + R + 1) * CHUNK_SIZE - 1;
-    const b = L.latLngBounds(toLL(left, top), toLL(right + 1, bottom + 1));
-    const ring = [b.getNorthWest(), b.getNorthEast(), b.getSouthEast(), b.getSouthWest(), b.getNorthWest()];
-    if (!eliteRing) eliteRing = L.polygon(ring, { color:'#4cc9f0', weight:2, fillOpacity:0, pane:'elite' }).addTo(eliteFG);
-    else            eliteRing.setLatLngs(ring);
-  }
-
-  btnEliteShow?.addEventListener('click', () => {
-    btnEliteShow.classList.add('active');
-    const handler = ev => { drawEliteAt(ev.latlng.lng, ev.latlng.lat); map.off('click', handler); btnEliteShow.classList.remove('active'); };
-    map.on('click', handler);
-  });
-  btnEliteClear?.addEventListener('click', () => { if (eliteRing){ eliteFG.removeLayer(eliteRing); eliteRing = null; } });
-
-  // -------- Crim respawn line --------
-  const RESPAWN_FIT_PADDING = 40;
-  let respawnActive = false;
-  let respawnLine = null;
-
-  function setRespawnActive(on) {
-    respawnActive = !!on;
-    btnCrimRespawn?.classList.toggle('active', respawnActive);
-  }
-
-  function clearRespawnLine() {
-    if (!respawnLine) return;
-    respawnFG.removeLayer(respawnLine);
-    respawnLine = null;
-  }
-
-  function normalizeRespawnX(x) {
-    return x >= FLOOR_WIDTH ? x - FLOOR_WIDTH : x;
-  }
-
-  function nearestCrimSpawn(x, y) {
-    if (!crimSpawnPoints.length) return null;
-    let best = null;
-    let bestDist = Infinity;
-    for (const spawn of crimSpawnPoints) {
-      const dx = x - spawn.x;
-      const dy = y - spawn.y;
-      const dist = Math.abs(dx) + Math.abs(dy);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = spawn;
-      }
-    }
-    return best;
-  }
-
-  function ensureRespawnLineInView(start, end) {
-    const bounds = L.latLngBounds(start, end);
-    if (map.getBounds().contains(bounds)) return;
-    const pad = RESPAWN_FIT_PADDING;
-    let leftPad = pad;
-    const mapRect = map.getContainer().getBoundingClientRect();
-    if (panel && mapRect) {
-      const panelRect = panel.getBoundingClientRect();
-      if (panelRect.width > 0) {
-        const panelInset = Math.max(0, panelRect.right - mapRect.left);
-        leftPad = Math.max(leftPad, panelInset + pad);
-      }
-    }
-    const currentZoom = map.getZoom();
-    map.fitBounds(bounds, {
-      paddingTopLeft: [leftPad, pad],
-      paddingBottomRight: [pad, pad],
-      maxZoom: currentZoom,
-      animate: true,
-      duration: 0.35
-    });
-  }
-
-  function drawRespawnLine(latlng) {
-    if (!IMG_W || !IMG_H) return;
-    const [gx, gy] = toGameXY(latlng);
-    const projectedX = normalizeRespawnX(gx);
-    const nearest = nearestCrimSpawn(projectedX, gy);
-    if (!nearest) return;
-    const targetFloor = floorForX(projectedX);
-    if (currentFloor !== targetFloor) {
-      switchFloor(targetFloor, { x: projectedX, y: gy, zoom: map.getZoom(), animate: false, preserveLocalPosition: false });
-    }
-    const start = toLL(projectedX, gy);
-    const end = toLL(nearest.x, nearest.y);
-    ensureRespawnLineInView(start, end);
-    const color = getCrimColor();
-    const points = [start, end];
-    if (!respawnLine) {
-      respawnLine = L.polyline(points, { color, weight: 2, opacity: 0.9, pane: 'routes' }).addTo(respawnFG);
-    } else {
-      respawnLine.setLatLngs(points);
-      respawnLine.setStyle({ color });
-    }
-  }
-
-  btnCrimRespawn?.addEventListener('click', () => setRespawnActive(!respawnActive));
-  btnCrimRespawnClear?.addEventListener('click', clearRespawnLine);
-  map.on('click', e => {
-    if (!respawnActive) return;
-    if (measuring) return;
-    drawRespawnLine(e.latlng);
-  });
-
   // -------- Collision hider (map labels) --------
   function markerPriority(spanEl) {
     let score = 1;
@@ -2190,10 +1907,13 @@ import {
         if (el.style.display === 'none'){ el.style.attach = ''; el.style.visibility = 'hidden'; return; }
         const span = el.querySelector('span.n');  if (!span) return;
 
-        const pt = map.latLngToLayerPoint(m.getLatLng());
-        const w  = el.offsetWidth  || (span.textContent.length * 7 + 6);
-        const h  = el.offsetHeight || (span.classList.contains('locale') ? 20 : 14);
-        const r  = { x: pt.x, y: pt.y, w, h, score: markerPriority(span) };
+        // Labels are centered on their marker; viewport checks must include
+        // the pane translation while panning, and the visible label's size.
+        const pt = map.latLngToContainerPoint(m.getLatLng());
+        const inner = el.querySelector('.lbl-inner');
+        const w = inner?.offsetWidth || (span.textContent.length * 7 + 6);
+        const h = inner?.offsetHeight || (span.classList.contains('locale') ? 20 : 14);
+        const r = { x: pt.x - w / 2, y: pt.y - h / 2, w, h, score: markerPriority(span) };
 
         if (r.x > size.x || r.y > size.y || r.x + r.w < 0 || r.y + r.h < 0) {
           el.style.visibility = 'hidden';
@@ -2294,23 +2014,28 @@ import {
   }
 
   // -------- Map change hooks --------
-  map.on('dragstart', () => {
-    isDraggingMap = true;
-    pendingDragRefresh = true;
-    floorRefreshToken++;
-    if (floorRefreshTimer) {
-      clearTimeout(floorRefreshTimer);
-      floorRefreshTimer = null;
-    }
+  let collisionFrame = null;
+  map.on('move resize', () => {
+    if (collisionFrame !== null) return;
+    collisionFrame = requestAnimationFrame(() => {
+      collisionFrame = null;
+      refreshChunkLayer({ duringMove: true });
+      rerunCollision();
+    });
   });
-  map.on('dragend', () => { isDraggingMap = false; });
-  map.on('zoomend',  () => { refreshChunkLayerDebounced(); rerunCollision(); });
-  map.on('moveend',  () => {
-    refreshChunkLayerDebounced();
+  map.on('dragstart', () => {
+    monsterZooming = false; // Dragging can interrupt a search's zoom animation.
+  });
+  map.on('zoomstart', () => { monsterZooming = true; });
+  map.on('zoomend', () => {
+    monsterZooming = false;
+    refreshChunkLayer({ viewportOnly: true });
     rerunCollision();
-    if (!pendingDragRefresh || isDraggingMap) return;
-    pendingDragRefresh = false;
-    forceFloorRefresh();
+  });
+  map.on('resize', () => refreshChunkLayer({ viewportOnly: true }));
+  map.on('moveend',  () => {
+    refreshChunkLayer({ viewportOnly: true });
+    rerunCollision();
   });
 
   exposeTestApi();

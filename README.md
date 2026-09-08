@@ -17,6 +17,25 @@ The map image and client-derived region layers are generated from local Project 
 - Generated warfront names and label positions: `data\warfronts.json`
 - App entry point: `index.html`
 - Main app logic: `js\app.js`
+- Smart Measure walking grids: `data\navigation\` (tile IDs `0`, `1`, `53`, `60` are blocked)
+
+Smart Measure is enabled by default, can be unchecked for straight-line measuring,
+and runs in a Web Worker without diagonal corner
+cutting. Short routes use eight-way A*. Longer routes use precomputed crossings
+of 32-tile clusters, followed by exact local A* and valid walking shortcuts.
+Long routes are approximate shortest paths; distance always counts the actual
+returned walking steps. It routes between clicked waypoints on the current floor,
+with the existing 5 tiles/sec time estimate. Blocked or disconnected
+destinations leave the current route intact. Search limits ask for a closer waypoint
+rather than reporting a destination unreachable. Regenerate grids with
+`python tools\generate_navigation.py` whenever the source map changes (see the update
+runbook). Generation requires Node.js as well as the existing Python dependencies.
+`python tools\generate_navigation.py --check` verifies grids and hierarchies are current.
+Hierarchy downloads are lazy and cached per floor (about 3 MB Overworld and
+0.24 MB Underground). Their gzip payloads are decoded with `DecompressionStream`
+inside the worker; no routing graph is built on the UI thread. Short searches
+fall back to the hierarchy after 40,000 discovered tiles or 500 ms; hierarchical
+search plus refinement has a 4-second budget, excluding data loading.
 
 Frontend JavaScript uses native browser ES modules. There is no bundled build step; run the app through a static server rather than opening `index.html` directly from disk.
 

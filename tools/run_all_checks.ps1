@@ -38,6 +38,8 @@ foreach ($file in $jsFiles) {
 }
 
 Invoke-Check 'Pure utility unit tests' @('node', '--test', 'tests\pure_utils.test.mjs')
+Invoke-Check 'Smart Measure routing tests' @('node', '--test', 'tests\smart_measure.test.mjs')
+Invoke-Check 'Navigation data freshness' @('python', 'tools\generate_navigation.py', '--check')
 Invoke-Check 'Deploy smoke unit tests' @('node', '--test', 'tests\deploy_smoke.test.mjs')
 Invoke-Check 'Project workflow contract tests' @('node', '--test', 'tests\project_workflow.test.mjs')
 Invoke-Check 'Search layer regression' @('node', 'tests\search_layer_regression.mjs')

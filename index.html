@@ -21,169 +21,172 @@
 
   <!-- App styles -->
   <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/panel.css">
 </head>
 <body>
   <div id="app">
     <div id="map" aria-label="Game Map"></div>
 
-    <!-- UI Panel -->
+    <!-- UI Panel: presentation stays separate from the map renderer. -->
     <aside id="panel" aria-label="Controls">
-      <header>
-        <h1>Project Rogue Map</h1>
-        <button id="btnCollapse" title="Collapse panel" aria-label="Collapse">⟨</button>
-      </header>
-
-      <section class="group">
-        <label class="search-label" for="search">Search names</label>
-        <div class="search-wrap">
-          <input
-            id="search"
-            type="search"
-            placeholder="Type to find a monster or place"
-            autocomplete="off"
-            aria-autocomplete="list"
-            aria-controls="searchSuggestions"
-          >
-          <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Matching names"></div>
-        </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Floor</div>
-        <div class="segmented-control" role="group" aria-label="Floor selection">
-          <button id="btnFloorOverworld" class="seg-btn active" type="button" aria-pressed="true">Overworld</button>
-          <button id="btnFloorUnderground" class="seg-btn" type="button" aria-pressed="false">Underground</button>
-        </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Layers</div>
-        <div class="layer-pills" role="group" aria-label="Layer toggles">
-          <!-- Client-derived Locales ON by default -->
-          <button id="pillLocales" class="pill-toggle pill-locale on" type="button" aria-pressed="true">
-            <span class="dot"></span><span class="txt">Locales</span>
-          </button>
-          <!-- Client-derived Warfront Areas OFF -->
-          <button id="pillWarfronts" class="pill-toggle pill-warfront" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Warfronts</span>
-          </button>
-          <!-- Client-derived Safe Zones OFF -->
-          <button id="pillSafeZones" class="pill-toggle pill-safe-zone" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Safe Zones</span>
-          </button>
-          <!-- Monsters (chunk labels) OFF by default -->
-          <button id="pillMonsters" class="pill-toggle pill-mon" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Monsters</span>
-          </button>
-          <!-- POIs OFF by default -->
-          <button id="pillPois" class="pill-toggle pill-poi" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">POIs</span>
-          </button>
-          <!-- Crim Spawns OFF -->
-          <button id="pillCrim" class="pill-toggle pill-crim" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Crim Spawns</span>
-          </button>
-          <!-- Portals OFF by default -->
-          <button id="pillPortals" class="pill-toggle pill-portal" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Portals</span>
-          </button>
-          <!-- Caves OFF by default -->
-          <button id="pillCaves" class="pill-toggle pill-cave" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Caves</span>
-          </button>
-          <!-- Zones OFF -->
-          <button id="pillZones" class="pill-toggle pill-zone" type="button" aria-pressed="false">
-            <span class="dot"></span><span class="txt">Zones</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Monster Level Filter</div>
-        <div class="monster-filter" aria-live="polite">
-          <div class="monster-filter-row">
-            <label for="monsterLevelMin">Min level</label>
-            <select id="monsterLevelMin" class="select-control" disabled>
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div class="monster-filter-row">
-            <label for="monsterLevelMax">Max level</label>
-            <select id="monsterLevelMax" class="select-control" disabled>
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div class="monster-filter-exclusive">
-            <span class="monster-filter-exclusive-label">Exclusive</span>
-            <button
-              id="monsterLevelExclusive"
-              type="button"
-              class="toggle-btn"
-              disabled
-              aria-pressed="false"
-              title="Only show encounters where every monster fits the selected range"
+      <div class="panel-top">
+        <header>
+          <h1>Project Rogue Map</h1>
+          <button id="btnCollapse" type="button" title="Collapse panel" aria-label="Collapse panel" aria-controls="panelSearch panelFloor panelSections panelFooter">⟨</button>
+        </header>
+        <section class="group" id="panelSearch">
+          <label class="search-label" for="search">Search names</label>
+          <div class="search-wrap">
+            <input
+              id="search"
+              type="search"
+              placeholder="Type to find a monster or place"
+              autocomplete="off"
+              aria-autocomplete="list"
+              aria-controls="searchSuggestions"
             >
-              Off
-            </button>
+            <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Matching names"></div>
           </div>
-          <div id="monsterLevelFilterStatus" class="monster-filter-hint">
-            Loading monster levels...
+        </section>
+        <section class="group" id="panelFloor">
+          <div class="group-title">Floor</div>
+          <div class="segmented-control" role="group" aria-label="Floor selection">
+            <button id="btnFloorOverworld" class="seg-btn active" type="button" aria-pressed="true">Overworld</button>
+            <button id="btnFloorUnderground" class="seg-btn" type="button" aria-pressed="false">Underground</button>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      <section class="group">
-        <div class="group-title">Coordinates</div>
-        <div id="coordStats" class="coords" aria-live="polite">
+      <div id="panelSections" class="panel-sections">
+        <details class="panel-section panel-layers" open>
+          <summary><span>Layers</span><span class="section-chevron" aria-hidden="true"></span></summary>
+          <div class="section-content">
+            <div class="layer-pills" role="group" aria-label="Layer toggles">
+              <!-- Client-derived Locales ON by default -->
+              <button id="pillLocales" class="pill-toggle pill-locale on" type="button" aria-pressed="true">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Locales</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Client-derived Warfront Areas OFF -->
+              <button id="pillWarfronts" class="pill-toggle pill-warfront" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Warfronts</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Client-derived Safe Zones OFF -->
+              <button id="pillSafeZones" class="pill-toggle pill-safe-zone" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Safe Zones</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Monsters (chunk labels) OFF by default -->
+              <button id="pillMonsters" class="pill-toggle pill-mon" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Monsters</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- POIs OFF by default -->
+              <button id="pillPois" class="pill-toggle pill-poi" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">POIs</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Crim Spawns OFF -->
+              <button id="pillCrim" class="pill-toggle pill-crim" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Crim Spawns</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Portals OFF by default -->
+              <button id="pillPortals" class="pill-toggle pill-portal" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Portals</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Caves OFF by default -->
+              <button id="pillCaves" class="pill-toggle pill-cave" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Caves</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+              <!-- Zones OFF -->
+              <button id="pillZones" class="pill-toggle pill-zone" type="button" aria-pressed="false">
+                <span class="dot" aria-hidden="true"></span><span class="txt">Zones</span><span class="layer-state" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section panel-monsters" id="monsterFilterSection">
+          <summary><span>Monster filters</span><span class="section-status filter-status">Filtered</span><span class="section-chevron" aria-hidden="true"></span></summary>
+          <div class="section-content">
+            <div class="monster-filter" aria-live="polite">
+              <div class="monster-filter-row">
+                <label for="monsterLevelMin">Min level</label>
+                <select id="monsterLevelMin" class="select-control" disabled>
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+              <div class="monster-filter-row">
+                <label for="monsterLevelMax">Max level</label>
+                <select id="monsterLevelMax" class="select-control" disabled>
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+              <div class="monster-filter-exclusive">
+                <span class="monster-filter-exclusive-label">Exclusive</span>
+                <button
+                  id="monsterLevelExclusive"
+                  type="button"
+                  class="toggle-btn"
+                  disabled
+                  aria-pressed="false"
+                  title="Only show encounters where every monster fits the selected range"
+                >
+                  Off
+                </button>
+              </div>
+              <div id="monsterLevelFilterStatus" class="monster-filter-hint">
+                Loading monster levels...
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section panel-tools">
+          <summary><span>Map tools</span><span class="section-status tool-status">Active</span><span class="section-chevron" aria-hidden="true"></span></summary>
+          <div class="section-content">
+            <section class="panel-tool">
+              <h3 class="tool-title">Measure</h3>
+              <label class="pill-toggle smart-measure-option"><span>Smart Measure</span><input id="measureSmart" type="checkbox" checked><span class="layer-state" aria-hidden="true"></span></label>
+              <div class="measure-row">
+                <button id="btnMeasure" class="btn-action" type="button" aria-pressed="false" aria-describedby="measureHint" title="Start a new route (M)">Measure</button>
+                <button id="btnMeasureUndo" class="btn-action" type="button" aria-label="Undo last measure point" disabled>Undo</button>
+                <button id="btnClear" class="btn-action" type="button" aria-label="Clear measurement" disabled>Clear</button>
+              </div>
+              <p id="measureHint" class="tool-hint" aria-live="polite">Draw a route by clicking points. M to start.</p>
+              <div id="measureStats" aria-live="polite">0 tiles · Estimated travel time: 0.0s</div>
+              <p id="measureNote" class="tool-note">Walking route · 5 tiles/sec. Water, mountains and void are blocked.</p>
+            </section>
+            <section class="panel-tool">
+              <h3 class="tool-title">Elite Zones</h3>
+              <div class="measure-row">
+                <button id="btnEliteShow" class="btn-action" type="button" aria-pressed="false" aria-describedby="eliteHint">Add positions</button>
+                <button id="btnEliteClear" class="btn-action" type="button" aria-label="Clear all elite positions" disabled>Clear all</button>
+              </div>
+              <p id="eliteHint" class="tool-hint" aria-live="polite">Compare standing positions. Drag a numbered pin to move it.</p>
+              <details class="tool-explainer">
+                <summary>About the 10-chunk range</summary>
+                <p class="tool-note">Keep encounters active for 1 minute to allow elite variants; eligibility lasts 6 minutes after leaving.</p>
+                <p class="tool-note">This is a chunk-aligned range estimate, not live spawn activity. <a href="https://traecneh.github.io/Project-Rogue-Codex/pages/systems/encounter.html" target="_blank" rel="noopener noreferrer">Encounter rules ↗</a></p>
+              </details>
+              <div id="eliteCount" class="tool-note" aria-live="polite"></div>
+              <div id="elitePositions" aria-label="Elite positions on this floor"></div>
+            </section>
+            <section class="panel-tool">
+              <h3 class="tool-title">Crim Respawn</h3>
+              <div class="measure-row">
+                <button id="btnCrimRespawn" class="btn-action" type="button" aria-pressed="false" aria-describedby="respawnHint">Find Respawn</button>
+                <button id="btnCrimRespawnClear" class="btn-action" type="button" aria-label="Clear respawn preview" disabled>Clear</button>
+              </div>
+              <p id="respawnHint" class="tool-hint" aria-live="polite">Pick a spot to see where you would respawn.</p>
+            </section>
+          </div>
+        </details>
+      </div>
+
+      <footer id="panelFooter" class="panel-footer">
+        <div id="coordStats" class="coords" aria-label="Map coordinates" aria-live="polite">
           <span class="pill"><span class="lbl">X</span><span class="val">—</span></span>
           <span class="pill"><span class="lbl">Y</span><span class="val">—</span></span>
         </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Measure</div>
-        <div class="measure-row">
-          <button id="btnMeasure" class="btn-action" title="Click to start measure (M starts once)">Measure</button>
-          <button id="btnClear" class="btn-action" title="Clear current route">Clear</button>
-        </div>
-        <div id="measureStats" aria-live="polite">Time: 0.0s (0 tiles)</div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Elite Zones</div>
-        <div class="measure-row">
-          <button id="btnEliteShow" class="btn-action" title="Click, then tap map to place overlay">Show Elite Zones</button>
-          <button id="btnEliteClear" class="btn-action" title="Clear Elite overlay">Clear</button>
-        </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Crim Respawn</div>
-        <div class="measure-row">
-          <button id="btnCrimRespawn" class="btn-action" title="Toggle, then click map to find nearest Crim spawn">Find Respawn</button>
-          <button id="btnCrimRespawnClear" class="btn-action" title="Clear respawn line">Clear</button>
-        </div>
-      </section>
-
-      <section class="group">
-        <div class="group-title">Screensaver</div>
-        <div class="measure-row">
-          <button id="btnVibeOut" class="btn-action" title="Jump through the world on autopilot">Vibe Out</button>
-        </div>
-      </section>
-
-      <section class="group codex-link">
-        <a
-          class="btn-action btn-codex"
-          href="https://traecneh.github.io/Project-Rogue-Codex/"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Project Rogue Codex"
-        >
-          <img id="codexLogo" src="./img/codex-logo-1.png" alt="Project Rogue Codex">
-          <span class="sr-only">Project Rogue Codex</span>
-        </a>
-      </section>
+        <a class="panel-codex-link" href="https://traecneh.github.io/Project-Rogue-Codex/" target="_blank" rel="noopener noreferrer" aria-label="Project Rogue Codex">Open PR Codex <span aria-hidden="true">↗</span></a>
+      </footer>
     </aside>
   </div>
 

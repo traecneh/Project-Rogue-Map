@@ -118,6 +118,8 @@ function makeLayerGroup() {
 function createHarness() {
   const elements = new Map();
   const visibleLayers = new Set();
+  const handlers = new Map();
+  const frames = [];
 
   function elementForSelector(selector) {
     if (!selector.startsWith('#')) return makeElement(selector);
@@ -156,6 +158,9 @@ function createHarness() {
     latLngToLayerPoint() {
       return { x: 100, y: 100 };
     },
+    latLngToContainerPoint(latlng) {
+      return { x: latlng.lng, y: 100 };
+    },
     getContainer() {
       return makeElement('map');
     },
@@ -168,7 +173,16 @@ function createHarness() {
     getMinZoom() {
       return -2;
     },
-    on() {},
+    on(events, callback) {
+      for (const event of events.split(' ')) {
+        if (!handlers.has(event)) handlers.set(event, []);
+        handlers.get(event).push(callback);
+      }
+      return this;
+    },
+    fire(event) {
+      for (const callback of handlers.get(event) || []) callback();
+    },
     once() {},
     stop() {},
     setZoom() {},
@@ -257,6 +271,11 @@ function createHarness() {
   };
 
   return {
+    map,
+    frames,
+    flushFrames() {
+      frames.splice(0).forEach(callback => callback());
+    },
     context: {
       console,
       assert,
@@ -271,7 +290,7 @@ function createHarness() {
         return 1;
       },
       clearTimeout() {},
-      requestAnimationFrame: callback => callback()
+      requestAnimationFrame: callback => frames.push(callback)
     }
   };
 }
@@ -296,3 +315,40 @@ assert.strictEqual(api.elements.pillLocales.classList.contains('on'), true);
 assert.strictEqual(api.elements.pillPois.classList.contains('on'), true);
 assert.notStrictEqual(localeMarker.el.style.display, 'none', 'monster search should not hide enabled locale labels');
 assert.notStrictEqual(poiMarker.el.style.display, 'none', 'monster search should not hide enabled POI labels');
+
+// A label already exists offscreen, then enters the viewport during a drag.
+// Layer coordinates deliberately stay offscreen as Leaflet translates its pane.
+api.groups.poisFG.clearLayers();
+harness.map.addLayer(api.groups.localeLabelsFG);
+localeMarker.el._inner.offsetWidth = 80;
+localeMarker.el._inner.offsetHeight = 20;
+localeMarker.el.style.display = '';
+let viewportX = -100;
+harness.map.latLngToLayerPoint = () => ({ x: -100, y: 100 });
+harness.map.latLngToContainerPoint = () => ({ x: viewportX, y: 100 });
+harness.map.fire('moveend');
+assert.strictEqual(localeMarker.el.style.visibility, 'hidden', 'offscreen label should be hidden');
+
+harness.map.fire('dragstart');
+viewportX = 100;
+harness.map.fire('move');
+harness.map.fire('move');
+assert.strictEqual(harness.frames.length, 1, 'movement should schedule at most one label pass per frame');
+harness.flushFrames();
+assert.strictEqual(localeMarker.el.style.visibility, '', 'label must appear during dragging, before moveend');
+
+viewportX = 1050;
+harness.map.fire('move');
+harness.flushFrames();
+assert.strictEqual(localeMarker.el.style.visibility, '', 'partially visible centered label should remain visible');
+viewportX = 1070;
+harness.map.fire('move');
+harness.flushFrames();
+assert.strictEqual(localeMarker.el.style.visibility, 'hidden', 'fully offscreen label should be hidden');
+
+let zoomChanges = 0;
+harness.map.setZoom = () => { zoomChanges++; };
+harness.map.fire('dragend');
+harness.map.fire('moveend');
+harness.flushFrames();
+assert.strictEqual(zoomChanges, 0, 'finishing a drag must not bounce the zoom to reveal labels');

@@ -1,0 +1,158 @@
+[
+  {
+    "name": "mountain",
+    "floor": "overworld",
+    "start": {
+      "x": 1500,
+      "y": 780
+    },
+    "end": {
+      "x": 1600,
+      "y": 780
+    },
+    "optimalSteps": 100
+  },
+  {
+    "name": "water",
+    "floor": "overworld",
+    "start": {
+      "x": 1980,
+      "y": 640
+    },
+    "end": {
+      "x": 2100,
+      "y": 640
+    },
+    "optimalSteps": 120
+  },
+  {
+    "name": "towns",
+    "floor": "overworld",
+    "start": {
+      "x": 760,
+      "y": 1050
+    },
+    "end": {
+      "x": 1480,
+      "y": 1880
+    },
+    "optimalSteps": 1132
+  },
+  {
+    "name": "hard-long",
+    "floor": "overworld",
+    "start": {
+      "x": 800,
+      "y": 600
+    },
+    "end": {
+      "x": 2222,
+      "y": 3078
+    },
+    "optimalSteps": 3515
+  },
+  {
+    "name": "Grell",
+    "floor": "underground",
+    "start": {
+      "x": 1224,
+      "y": 680
+    },
+    "end": {
+      "x": 1264,
+      "y": 760
+    },
+    "optimalSteps": 117
+  },
+  {
+    "name": "sample-1",
+    "floor": "overworld",
+    "start": {
+      "x": 432,
+      "y": 2571
+    },
+    "end": {
+      "x": 2309,
+      "y": 1359
+    },
+    "optimalSteps": 2423
+  },
+  {
+    "name": "sample-2",
+    "floor": "overworld",
+    "start": {
+      "x": 3555,
+      "y": 1215
+    },
+    "end": {
+      "x": 2844,
+      "y": 436
+    },
+    "optimalSteps": 2080
+  },
+  {
+    "name": "sample-3",
+    "floor": "overworld",
+    "start": {
+      "x": 949,
+      "y": 2922
+    },
+    "end": {
+      "x": 2205,
+      "y": 1344
+    },
+    "optimalSteps": 2281
+  },
+  {
+    "name": "sample-4",
+    "floor": "overworld",
+    "start": {
+      "x": 2996,
+      "y": 1065
+    },
+    "end": {
+      "x": 2911,
+      "y": 1453
+    },
+    "optimalSteps": 388
+  },
+  {
+    "name": "sample-5",
+    "floor": "overworld",
+    "start": {
+      "x": 2157,
+      "y": 3807
+    },
+    "end": {
+      "x": 1869,
+      "y": 3193
+    },
+    "optimalSteps": 965
+  },
+  {
+    "name": "sample-6",
+    "floor": "overworld",
+    "start": {
+      "x": 1525,
+      "y": 3582
+    },
+    "end": {
+      "x": 1124,
+      "y": 3324
+    },
+    "optimalSteps": 458
+  },
+  {
+    "name": "sample-7",
+    "floor": "overworld",
+    "start": {
+      "x": 1138,
+      "y": 3756
+    },
+    "end": {
+      "x": 2299,
+      "y": 3535
+    },
+    "optimalSteps": 1161
+  }
+]

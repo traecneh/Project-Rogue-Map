@@ -73,6 +73,19 @@ python tools\render_map_candidate.py `
   --underground-transform identity
 ```
 
+Regenerate Smart Measure's walking grids and cluster routing hierarchies from the
+same extracted map (requires Node.js and the existing Python dependencies). These
+block tile IDs `0`, `1`, `53`, and `60`, using the map's client-blueprint layer rule:
+
+```powershell
+python tools\generate_navigation.py --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD
+python tools\generate_navigation.py --extracted-dir .analysis\rogue_data_vpack_YYYY-MM-DD --check
+```
+
+Commit `data/navigation/manifest.json` and all four `.bin` files with the map
+update: a walking grid and a compressed hierarchy for each floor. The manifest
+checksums bind each hierarchy to its grid; `--check` catches stale grids or graphs.
+
 Regenerate the lightweight image used by external map previews:
 
 ```powershell

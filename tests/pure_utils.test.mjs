@@ -1,5 +1,33 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createChunkLabelLayoutCache } from '../js/chunk-label-layout-cache.js';
+import { monsterViewportBuffer, monsterViewportNeedsRefresh } from '../js/monster-viewport-state.js';
+import { elitePreviewBounds, formatTravelTime, measureTileDistance, nearestCrimSpawn } from '../js/map-tool-utils.js';
+
+test('manual measurement counts diagonal tile steps along each waypoint', () => {
+  assert.equal(measureTileDistance([]), 0);
+  assert.equal(measureTileDistance([{ x: 5, y: 5 }]), 0);
+  assert.equal(measureTileDistance([{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 10, y: 15 }]), 15);
+  assert.equal(formatTravelTime(2), '2.0s');
+  assert.equal(formatTravelTime(60), '1m');
+  assert.equal(formatTravelTime(3661), '1h 1m 1s');
+});
+
+test('elite previews include the selected chunk and ten neighbors, clipped to their floor', () => {
+  assert.deepEqual(elitePreviewBounds({ x: 1500, y: 2000, minX: 0, maxX: 4096, height: 4096 }),
+    { left: 1328, right: 1664, top: 1840, bottom: 2176 });
+  assert.deepEqual(elitePreviewBounds({ x: 4096, y: 0, minX: 4096, maxX: 8192, height: 4096 }),
+    { left: 4096, right: 4272, top: 0, bottom: 176 });
+  assert.deepEqual(elitePreviewBounds({ x: 4095, y: 4095, minX: 0, maxX: 4096, height: 4096 }),
+    { left: 3920, right: 4096, top: 3920, bottom: 4096 });
+});
+
+test('respawn selection preserves horizontal-plus-vertical distance and stable ties', () => {
+  const diagonal = { x: 6, y: 6 }, horizontal = { x: 10, y: 0 };
+  assert.equal(nearestCrimSpawn([diagonal, horizontal], 0, 0), horizontal);
+  assert.equal(nearestCrimSpawn([horizontal, { x: 0, y: 10 }], 0, 0), horizontal);
+  assert.equal(nearestCrimSpawn([], 0, 0), null);
+});
 
 import {
   clampFloorX,
@@ -785,4 +813,65 @@ test('coordinate helpers convert between image, game, and floor spaces', () => {
     floorViewportBounds('overworld', FLOORS, 4096, toFloorLL, latLngBounds, 10, 20),
     { a: { floor: 'overworld', x: -10, y: -20 }, b: { floor: 'overworld', x: 4106, y: 4116 } }
   );
+});
+
+test('chunk label layouts distinguish dimensions and ordered names without delimiter collisions', () => {
+  const cache = createChunkLabelLayoutCache();
+  const layout = { html: '<span>50</span>', fontSize: '8px', compact: true };
+  cache.set(32, 32, ['A|B', 'C'], layout);
+  assert.deepEqual(cache.get(32, 32, ['A|B', 'C']), layout);
+  assert.equal(cache.get(32, 32, ['A', 'B|C']), undefined);
+  assert.equal(cache.get(32, 32, ['C', 'A|B']), undefined);
+  assert.equal(cache.get(64, 32, ['A|B', 'C']), undefined);
+  assert.equal(cache.get(32, 64, ['A|B', 'C']), undefined);
+  layout.fontSize = '16px';
+  assert.equal(cache.get(32, 32, ['A|B', 'C']).fontSize, '8px');
+});
+
+test('chunk label cache stays bounded while retaining recently used layouts', () => {
+  const cache = createChunkLabelLayoutCache(2);
+  cache.set(32, 32, ['A'], { html: 'A' });
+  cache.set(32, 32, ['B'], { html: 'B' });
+  cache.get(32, 32, ['A']);
+  cache.set(32, 32, ['C'], { html: 'C' });
+  assert.equal(cache.size, 2);
+  assert.equal(cache.get(32, 32, ['B']), undefined);
+  assert.equal(cache.get(32, 32, ['A']).html, 'A');
+  cache.set(32, 32, ['A'], { html: 'updated' });
+  assert.equal(cache.size, 2);
+  assert.equal(cache.get(32, 32, ['A']).html, 'updated');
+});
+
+test('font or level invalidation clears layouts and advances the marker revision', () => {
+  const cache = createChunkLabelLayoutCache();
+  const revision = cache.revision;
+  cache.set(32, 32, ['A'], { html: 'A' });
+  cache.clear();
+  assert.equal(cache.size, 0);
+  assert.equal(cache.get(32, 32, ['A']), undefined);
+  assert.equal(cache.revision, revision + 1);
+  assert.throws(() => createChunkLabelLayoutCache(0), RangeError);
+});
+
+test('monster panning refreshes before exhausting its screen-space buffer', () => {
+  const view = { x: 1000, y: 2000, zoom: 1, floor: 'overworld', width: 1280, height: 720 };
+  assert.equal(monsterViewportBuffer(view), 192);
+  assert.equal(monsterViewportNeedsRefresh(null, view), true);
+  assert.equal(monsterViewportNeedsRefresh(view, { ...view }), false);
+  assert.equal(monsterViewportNeedsRefresh(view, { ...view, x: 1095, y: 2095 }), false);
+  for (const offset of [-96, 96]) {
+    assert.equal(monsterViewportNeedsRefresh(view, { ...view, x: view.x + offset }), true);
+    assert.equal(monsterViewportNeedsRefresh(view, { ...view, y: view.y + offset }), true);
+  }
+});
+
+test('monster viewport reuse is invalidated by zoom, floor and viewport size changes', () => {
+  const view = { x: 0, y: 0, zoom: 1, floor: 'overworld', width: 1280, height: 720 };
+  for (const change of [{ zoom: 2 }, { floor: 'underground' }, { width: 1024 }, { height: 800 }]) {
+    assert.equal(monsterViewportNeedsRefresh(view, { ...view, ...change }), true);
+  }
+  const mobile = { ...view, width: 390, height: 844 };
+  assert.equal(monsterViewportBuffer(mobile), 130);
+  assert.equal(monsterViewportNeedsRefresh(mobile, { ...mobile, x: 64 }), false);
+  assert.equal(monsterViewportNeedsRefresh(mobile, { ...mobile, x: 65 }), true);
 });

@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "blockedTileIds": [
+    0,
+    1,
+    53,
+    60
+  ],
+  "sourceMapSha256": "3bf5f78b9bb3d25f5378d5574a6f83848244d9bf172aa3534b05c3412f7d8d04",
+  "floors": {
+    "overworld": {
+      "file": "overworld.bin",
+      "offsetX": 0,
+      "width": 4096,
+      "height": 4096,
+      "sha256": "18183efcce9bad0479b17dc5ad010f38cf626e70901fdf4df5bde145fc9baac9",
+      "regions": 4706,
+      "walkableTiles": 6566866,
+      "hierarchy": {
+        "file": "overworld-hierarchy.bin",
+        "encoding": "gzip",
+        "decodedBytes": 9622584,
+        "sha256": "c40146c0a5a28513d15d400d6b1817813521d06245e3a6770777bf81dbae028e",
+        "gridSha256": "18183efcce9bad0479b17dc5ad010f38cf626e70901fdf4df5bde145fc9baac9"
+      }
+    },
+    "underground": {
+      "file": "underground.bin",
+      "offsetX": 4096,
+      "width": 4096,
+      "height": 4096,
+      "sha256": "7495eda1ee0a854bfc10baafd2bf63bf2fbb3c68bdd13533e42adcec8e92b143",
+      "regions": 404,
+      "walkableTiles": 567258,
+      "hierarchy": {
+        "file": "underground-hierarchy.bin",
+        "encoding": "gzip",
+        "decodedBytes": 656348,
+        "sha256": "47800b0ac3fc500cb9a41d3103d717645b1a60566be71011c99ad148e2846ccf",
+        "gridSha256": "7495eda1ee0a854bfc10baafd2bf63bf2fbb3c68bdd13533e42adcec8e92b143"
+      }
+    }
+  }
+}
